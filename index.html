@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Tiger Chef</title>
 <style>
 @font-face {
@@ -24,11 +24,15 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:'GameFont',sans-serif !important}
 html,body{width:100%;height:100%;overflow:hidden;background:#1A0800}
+/* Chrome dvh fix — dynamic viewport excludes browser chrome */
+@supports(height:100dvh){
+  html,body{height:100dvh}
+}
 input,select,button,textarea{font-family:'GameFont',sans-serif !important;-webkit-appearance:none}
 body{font-family:'GameFont',sans-serif;color:var(--cr);display:flex;align-items:center;justify-content:center}
 
 /* ── TIGER STRIPE BG — visible through game, NO dark overlay ── */
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;height:100%;height:100dvh;
   background-color:#F9A11B;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='900'%3E%3Cpath d='M15,0 C22,90 8,145 18,260 C25,345 10,400 18,510 C24,590 10,645 18,755 C24,825 12,870 20,920' stroke='%2344302A' stroke-width='26' fill='none' stroke-linecap='round'/%3E%3Cpath d='M65,0 C58,85 75,138 68,248 C62,330 78,382 70,492 C64,572 80,626 72,735 C66,808 80,852 73,918' stroke='%2344302A' stroke-width='20' fill='none' stroke-linecap='round'/%3E%3Cpath d='M115,0 C122,88 105,142 115,255 C122,338 108,393 116,503 C122,582 108,638 116,748 C122,820 110,864 118,918' stroke='%2344302A' stroke-width='22' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   opacity:0.22}
@@ -40,6 +44,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   display:flex;flex-direction:column;
   overflow:hidden;position:relative;z-index:1;
   background:transparent; /* NO dark film — stripes visible */
+}
+@supports(height:100dvh){
+  #app{height:100dvh;max-height:min(800px,100dvh)}
 }
 @media(min-width:800px){
   body{padding:10px}
@@ -152,6 +159,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   z-index:15; /* above the centre table */
   /* overflow visible so cards can pop UP over the label */
   overflow:visible;
+  /* Safe area for iOS Chrome home bar */
+  padding-bottom:env(safe-area-inset-bottom,0px);
 }
 
 /* iPad: action buttons in single row, comfortable sizing */
@@ -237,7 +246,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 }
 
 .dash-inner{
-  padding:7px 5.5%;
+  padding:7px 8px;
   overflow:visible; /* cards expand upward, not downward */
 }
 
@@ -295,12 +304,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .hc.dis:hover,.hc.dis:active{transform:none;border-color:transparent;box-shadow:none;z-index:5}
 
 /* Action buttons — Fredoka One everywhere, consistent */
-.act-btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.act-btns{display:flex;gap:4px;flex-wrap:nowrap;margin-top:7px;overflow:visible}
 .ab{
-  padding:7px 10px;border-radius:9px;border:none;cursor:pointer;
-  font-family:'GameFont',sans-serif;font-size:0.82rem;
-  transition:all .18s;flex-shrink:0;letter-spacing:0.2px;
-  -webkit-font-smoothing:antialiased;
+  padding:6px 8px;border-radius:9px;border:none;cursor:pointer;
+  font-family:'GameFont',sans-serif;font-size:0.78rem;
+  transition:all .18s;flex-shrink:0;letter-spacing:0.1px;
+  -webkit-font-smoothing:antialiased;white-space:nowrap;
 }
 .ab.pr{background:var(--or);color:var(--br)}
 .ab.pr:hover,.ab.pr:active{background:var(--ye);transform:translateY(-1px)}
@@ -545,7 +554,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <button class="ab pr" id="b5" onclick="doSlow()">🥩 Slow Deliver</button>
           <button class="ab se" id="b6" onclick="openDiscardModal()">🗑️ Discard</button>
           <button class="ab se" id="b7" onclick="doDraw()">🃏 Draw &amp; End</button>
-          <button class="ab end-btn" onclick="endTurn()">End Turn →</button>
+          <button class="ab end-btn" id="bend" onclick="endTurn()">End Turn →</button>
         </div>
       </div>
     </div>
@@ -982,6 +991,15 @@ function updateBtns(){
   document.getElementById("b5").disabled=dr||d.slow||!hasMeat||p.isBlocked||!!p.meatInFront;
   document.getElementById("b6").disabled=dr||d.disc||p.hand.length===0;
   document.getElementById("b7").disabled=d.draw;
+  // Ghost "Draw & End" when hand already has 5 cards (no draw needed)
+  var handFull=p.hand.length>=5;
+  document.getElementById("b7").disabled=d.draw||handFull;
+  // Ghost "End Turn" when hand < 5 AND cards are available (must draw first)
+  var avail=G.deck.length+G.discard.length;
+  var endOk=d.draw||(p.hand.length>=5)||avail===0;
+  document.getElementById("bend").style.opacity=endOk?"1":"0.28";
+  document.getElementById("bend").style.pointerEvents=endOk?"auto":"none";
+  document.getElementById("bend").title=endOk?"":"Draw first — you have fewer than 5 cards";
 }
 
 // ── ACTIONS ──
@@ -1098,6 +1116,13 @@ function doDraw(){
 function drawToFive(p){
   var needed=Math.max(0,5-p.hand.length);
   if(needed===0){ log(p.name+" drew 0 (hand full)."); return; }
+  // PRE-SHUFFLE: if deck has 5 or fewer cards and discard has more,
+  // merge discard into deck NOW before drawing, so no gap occurs
+  if(G.deck.length<=5 && G.discard.length>0){
+    var extra=shuffle(G.discard.slice());
+    G.deck=G.deck.concat(extra); G.discard=[];
+    log("Discard merged into Draw Pile proactively. 🔄");
+  }
   if(G.deck.length===0){
     if(G.discard.length===0){ toast("No cards left!"); return; }
     G.deck=shuffle(G.discard.slice()); G.discard=[];
