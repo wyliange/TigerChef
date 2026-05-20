@@ -34,7 +34,9 @@ body{font-family:'GameFont',sans-serif;color:var(--cr);display:flex;align-items:
 /* ── TIGER STRIPE BG — visible through game, NO dark overlay ── */
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;height:100%;height:100dvh;
   background-color:#F9A11B;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='900'%3E%3Cpath d='M15,0 C22,90 8,145 18,260 C25,345 10,400 18,510 C24,590 10,645 18,755 C24,825 12,870 20,920' stroke='%2344302A' stroke-width='26' fill='none' stroke-linecap='round'/%3E%3Cpath d='M65,0 C58,85 75,138 68,248 C62,330 78,382 70,492 C64,572 80,626 72,735 C66,808 80,852 73,918' stroke='%2344302A' stroke-width='20' fill='none' stroke-linecap='round'/%3E%3Cpath d='M115,0 C122,88 105,142 115,255 C122,338 108,393 116,503 C122,582 108,638 116,748 C122,820 110,864 118,918' stroke='%2344302A' stroke-width='22' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='320'%3E%3C!-- Seamless tiling tiger stripes: paths start/end at tile edges --%3E%3Cpath d='M18,0 C26,32 12,52 20,96 C28,140 14,162 22,210 C28,248 16,270 22,320' stroke='%2344302A' stroke-width='28' fill='none' stroke-linecap='round'/%3E%3Cpath d='M72,0 C66,30 80,50 74,94 C68,136 82,158 76,204 C70,242 84,264 78,320' stroke='%2344302A' stroke-width='22' fill='none' stroke-linecap='round'/%3E%3Cpath d='M130,0 C136,34 122,54 130,100 C138,144 124,166 132,212 C138,252 126,272 132,320' stroke='%2344302A' stroke-width='24' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size:160px 320px;
+  background-repeat:repeat;
   opacity:0.22}
 
 /* ── APP — transparent bg so stripes show through ── */
@@ -217,10 +219,28 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;hei
     transform:translateY(calc(100% - 36px));
   }
   .dash-toggle{display:block !important}
-  /* Smaller buttons on mobile: 3 rows instead of 4, show toggle */
+  /* Mobile buttons: 2 rows of 4, all 8 visible */
   .dash-inner{padding:5px 3% !important}
-  .ab{font-size:0.72rem !important;padding:5px 7px !important}
-  .act-btns{gap:4px !important;margin-top:5px !important}
+  .act-btns{
+    gap:3px !important;
+    margin-top:4px !important;
+    flex-wrap:wrap !important;
+    justify-content:flex-start !important;
+  }
+  .ab{
+    font-size:0.68rem !important;
+    padding:5px 6px !important;
+    /* 4 buttons per row: (100% - 3gaps*3px) / 4 */
+    flex:0 0 calc(25% - 3px) !important;
+    text-align:center !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    min-width:0 !important;
+  }
+  .ab.end-btn{
+    flex:0 0 calc(25% - 3px) !important;
+    margin-left:0 !important;
+  }
   .ply-hdr{margin-bottom:4px !important}
   .hand-lbl{font-size:0.6rem !important;margin-bottom:3px !important}
   /* On mobile make hand row NOT scroll — fit all cards, centered */
