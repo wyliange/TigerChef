@@ -98,6 +98,17 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 .logo-menu-item{padding:9px 14px;border-radius:8px;border:none;background:transparent;color:var(--cr);font-family:'GameFont',sans-serif;font-size:0.92rem;cursor:pointer;text-align:left;transition:background .15s;width:100%}
 .logo-menu-item:hover,.logo-menu-item:active{background:rgba(249,161,27,0.15);color:var(--ye)}
 .logo-menu-sep{height:1px;background:rgba(249,161,27,0.12);margin:3px 0}
+.chef-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 4px}
+.chef-opt{border:2px solid rgba(249,161,27,0.25);border-radius:10px;padding:4px 2px 3px;background:rgba(0,0,0,0.25);cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
+.chef-opt img{width:100%;max-width:64px;border-radius:6px;display:block;margin:0 auto}
+.chef-opt span{display:block;font-family:'GameFont',sans-serif;font-size:0.72rem;color:var(--cr);margin-top:2px}
+.chef-opt.sel{border-color:var(--or);background:rgba(249,161,27,0.18);box-shadow:0 0 10px rgba(249,161,27,0.35)}
+.chef-opt.sel span{color:var(--ye)}
+.chef-pick.sm{grid-template-columns:repeat(6,1fr);gap:4px;margin:4px 0 10px}
+.chef-pick.sm .chef-opt{padding:2px 1px}
+.chef-pick.sm .chef-opt span{font-size:0.56rem}
+#skip-banner{display:none;margin:6px 10px;padding:8px 10px;border:1px solid rgba(249,161,27,0.4);border-radius:10px;background:rgba(22,6,0,0.85);text-align:center;font-family:'GameFont',sans-serif;font-size:0.8rem;color:var(--cr)}
+#skip-banner button{margin-top:6px}
 .music-menu-btn{padding:9px 14px;border-radius:8px;border:none;background:transparent;color:var(--cr);font-family:'GameFont',sans-serif;font-size:0.92rem;cursor:pointer;text-align:left;width:100%;transition:background .15s}
 .music-menu-btn:hover,.music-menu-btn:active{background:rgba(249,161,27,0.15);color:var(--ye)}
 .music-menu-btn.playing{color:var(--ye)}
@@ -472,18 +483,25 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   <img id="mode-logo" src="" class="logo-img" alt="Tiger Chef">
   <div class="sbox">
     <div id="mode-invite" style="display:none;text-align:center;font-size:0.8rem;color:var(--ye);font-family:'GameFont',sans-serif;margin-bottom:10px">🔗 You've been invited to a room! Enter your name, then tap Join.</div>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:8px">Your name &amp; chef</p>
-    <div class="p-row"><label>You</label><input class="p-input" id="lp-name" placeholder="Enter your name" onfocus="this.select()"><select class="p-sel" id="lp-chef"></select></div>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players?</p>
-    <div class="cnt-btns" id="mode-cnt-btns">
-      <button class="cnt-btn" onclick="setRcCount(2)">2</button>
-      <button class="cnt-btn" onclick="setRcCount(3)">3</button>
-      <button class="cnt-btn" onclick="setRcCount(4)">4</button>
-      <button class="cnt-btn" onclick="setRcCount(5)">5</button>
+    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:8px">Enter your Name &amp; Choose your Chef</p>
+    <div class="p-row"><label>You</label><input class="p-input" id="lp-name" placeholder="Enter your name" onfocus="this.select()"></div>
+    <div class="chef-pick" id="lp-chef-pick"></div>
+    <div id="mode-main-btns">
+      <button class="btn-go" onclick="chooseCreate('local')" style="margin-top:14px;margin-bottom:10px">📱 Create a Local Game</button>
+      <button class="btn-go" onclick="chooseCreate('online')" style="margin-bottom:10px">🌐 Create an Online Room</button>
+      <button class="btn-go" onclick="showJoin()">🔗 Join an Online Room</button>
     </div>
-    <button class="btn-go" onclick="goLocal()" style="margin-top:14px;margin-bottom:10px">📱 Create a Local Game (Pass &amp; Play)</button>
-    <button class="btn-go" onclick="createRoom()" style="margin-bottom:10px">🌐 Create an Online Room</button>
-    <button class="btn-go" onclick="showJoin()">🔗 Join an Online Room</button>
+    <div id="mode-cnt-wrap" style="display:none">
+      <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players?</p>
+      <div class="cnt-btns" id="mode-cnt-btns">
+        <button class="cnt-btn" onclick="setRcCount(2)">2</button>
+        <button class="cnt-btn" onclick="setRcCount(3)">3</button>
+        <button class="cnt-btn" onclick="setRcCount(4)">4</button>
+        <button class="cnt-btn" onclick="setRcCount(5)">5</button>
+      </div>
+      <button class="btn-go" id="mode-go-btn" onclick="confirmCreate()" style="margin-top:14px;margin-bottom:10px">Continue</button>
+      <button class="mcancel" onclick="cancelCreate()" style="width:100%">Back</button>
+    </div>
   </div>
 </div>
 
@@ -554,8 +572,9 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
       <div class="logo-menu-sep"></div>
       <button class="logo-menu-item" onclick="menuAction('rules')">📖 Game Rules</button>
       <div class="logo-menu-sep"></div>
-      <button class="logo-menu-item" onclick="menuAction('resetRound')">🔄 Reset Round</button>
-      <button class="logo-menu-item" onclick="menuAction('resetGame')" style="color:#E74C3C">⚠️ Reset Game</button>
+      <button class="logo-menu-item" id="mi-reset-round" onclick="menuAction('resetRound')">🔄 Reset Round</button>
+      <button class="logo-menu-item" id="mi-reset-game" onclick="menuAction('resetGame')" style="color:#E74C3C">⚠️ Reset Game</button>
+      <button class="logo-menu-item" id="mi-exit" onclick="menuAction('exit')" style="color:#E74C3C;display:none">🚪 Exit Game</button>
     </div>
     <div class="ti">
       <div class="ti-lbl">Current Turn</div>
@@ -615,6 +634,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
           </div>
           <div class="act-tracker" id="act-tracker"></div>
         </div>
+        <div id="skip-banner"><div id="skip-msg"></div><button class="ab se" id="skip-btn" onclick="voteSkip()">⏭ Vote to skip</button></div>
         <div class="hand-section">
           <div class="hand-lbl">Your Hand — tap to select, then choose action</div>
           <div class="hand-row" id="hand-row"></div>
@@ -878,6 +898,14 @@ var dashCollapsed=false;
 var onlineMode=false;
 var roomCode=null;
 var isHost=false;
+var hostUidCache=null;   // last known hostUid from the room doc
+var roomTurnAt=null;     // when the current turn started (ms)
+var roomSkipVotes=null;  // {target:playerIndex, voters:[uid,...]}
+var turnJustChanged=false; // set by turn-advancing code; sync() stamps turnAt
+var localChefs=[];       // chosen chefs for local (pass & play) setup
+var lpChef="Joanne";     // chef chosen on the landing page
+var pendingMode=null;    // 'local' | 'online' while picking player count
+var discBusy=false;      // double-tap guard for Confirm Discard
 var myIndex=-1;
 var rcCount=2;
 var roomUnsub=null;
@@ -887,33 +915,48 @@ var pendingLogs=[];
 var lastEvtId=null;
 var finishedShown=false;
 
-function chefOptionsHtml(sel){
-  return CHEFS.map(function(c){ return "<option value='"+c+"'"+(c===sel?" selected":"")+">"+c+"</option>"; }).join("");
+function renderChefPick(el,sel,onPick){
+  if(!el) return;
+  el.innerHTML="";
+  CHEFS.forEach(function(c){
+    var d=document.createElement("div"); d.className="chef-opt"+(c===sel?" sel":"");
+    var im=document.createElement("img"); im.src=IMG.chefs[c]; im.alt=c; d.appendChild(im);
+    var s=document.createElement("span"); s.textContent=c; d.appendChild(s);
+    d.onclick=function(){
+      el.querySelectorAll(".chef-opt").forEach(function(o){ o.classList.remove("sel"); });
+      d.classList.add("sel");
+      onPick(c);
+    };
+    el.appendChild(d);
+  });
 }
 function initOnlineChefSelects(){
-  document.getElementById("lp-chef").innerHTML=chefOptionsHtml("Joanne");
   // Prefill name/chef from last visit
   try{
     var n=localStorage.getItem("tcName"), c=localStorage.getItem("tcChef");
     if(n) document.getElementById("lp-name").value=n;
-    if(c&&CHEFS.indexOf(c)>-1) document.getElementById("lp-chef").value=c;
+    if(c&&CHEFS.indexOf(c)>-1) lpChef=c;
   }catch(e){}
+  renderChefPick(document.getElementById("lp-chef-pick"),lpChef,function(c){ lpChef=c; });
   // Copy logo from local-setup screen to landing (same image, no duplication)
   var src=document.querySelector("#ss .logo-img");
   if(src) document.getElementById("mode-logo").src=src.src;
 }
 function landingName(def){
   var n=(document.getElementById("lp-name").value||"").trim()||def;
-  var c=document.getElementById("lp-chef").value;
+  var c=lpChef;
   try{ localStorage.setItem("tcName",n); localStorage.setItem("tcChef",c); }catch(e){}
   return {name:n,chef:c};
 }
 function goLocal(){
   var me=landingName("Player 1");
   setPCount(rcCount);
-  var n0=document.getElementById("pn0"), c0=document.getElementById("pc0");
+  var n0=document.getElementById("pn0");
   if(n0) n0.value=me.name;
-  if(c0) c0.value=me.chef;
+  if(CHEFS.indexOf(me.chef)>-1){
+    localChefs[0]=me.chef;
+    renderChefPick(document.getElementById("pcpick0"),me.chef,function(c){ localChefs[0]=c; });
+  }
   showScr("ss");
 }
 function showJoin(){
@@ -939,6 +982,23 @@ var inviteCode=null;
 function setRcCount(n){
   rcCount=n;
   document.querySelectorAll("#mode-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
+}
+function chooseCreate(mode){
+  pendingMode=mode;
+  document.getElementById("mode-main-btns").style.display="none";
+  document.getElementById("mode-cnt-wrap").style.display="block";
+  document.getElementById("mode-go-btn").textContent=(mode==="local"?"🐯 Start Local Setup":"🌐 Create Room");
+  setRcCount(rcCount||2);
+}
+function cancelCreate(){
+  pendingMode=null;
+  var w=document.getElementById("mode-cnt-wrap"), m=document.getElementById("mode-main-btns");
+  if(w) w.style.display="none";
+  if(m) m.style.display="block";
+}
+function confirmCreate(){
+  if(pendingMode==="local") goLocal();
+  else if(pendingMode==="online") createRoom();
 }
 function genRoomCode(){
   var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -1039,6 +1099,14 @@ function listenToRoom(code){
     var data=doc.data();
     roomStatus=data.status;
     myIndex=data.players.findIndex(function(p){return p.uid===myUid;});
+    if(data.hostUid){
+      hostUidCache=data.hostUid;
+      var wasHost=isHost;
+      isHost=(data.hostUid===myUid);
+      if(isHost&&!wasHost&&data.status==="playing") toast("You are now the game master 👑","ok");
+    }
+    roomTurnAt=data.turnAt||null;
+    roomSkipVotes=data.skipVotes||null;
     if(data.status==="lobby"){
       finishedShown=false;
       renderLobby(data);
@@ -1089,6 +1157,7 @@ function sync(evt){
   if(G.logs.length>30) G.logs=G.logs.slice(-30);
   var payload={players:packPlayers(),deck:G.deck,discard:G.discard,
     tigerDeck:G.tigerDeck,cur:G.cur,round:G.round,logs:G.logs};
+  if(turnJustChanged){ payload.turnAt=Date.now(); payload.skipVotes=null; turnJustChanged=false; }
   if(evt){ evt.id=Date.now()+"-"+Math.random().toString(36).slice(2,7); payload.evt=evt; }
   var batch=db.batch();
   batch.update(roomRef(),payload);
@@ -1107,6 +1176,7 @@ function startOnlineGame(){
     full.forEach(function(p){ batch.set(roomRef().collection("private").doc(p.uid),{hand:p.hand}); });
     batch.update(roomRef(),{
       status:"playing",cur:0,round:1,deck:deck,discard:[],tigerDeck:18,
+      turnAt:Date.now(),skipVotes:null,
       logs:[{m:"Game started! Round 1 🐯",t:"hi"}],
       players:full.map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef,
         tigerCards:0,roundsWon:0,isBlocked:false,blockCard:null,meatInFront:null,
@@ -1138,6 +1208,7 @@ function onlineNewRound(winnerIdx){
   batch.update(roomRef(),{
     players:packPlayers(),deck:G.deck,discard:G.discard,tigerDeck:18,
     cur:G.cur,round:G.round,logs:G.logs,
+    turnAt:Date.now(),skipVotes:null,
     evt:{id:Date.now()+"-rw",type:"roundWin",wi:winnerIdx,next:true}
   });
   batch.commit().catch(function(e){ console.error(e); });
@@ -1164,6 +1235,7 @@ function onRoomStateChanged(data){
   var cur=document.querySelector(".scr.on");
   if(!cur||cur.id!=="gs") showScr("gs");
   renderGame();
+  updateSkipBanner();
   if(prevCur!==null&&prevCur!==G.cur&&G.cur===myIndex) toast("Your turn! 🐯","ok");
 }
 function handleEvt(evt){
@@ -1189,6 +1261,12 @@ function renderLogs(){
 function leaveRoom(){
   // If leaving mid-game, hand the turn over so others can continue
   if(onlineMode&&roomStatus==="playing"&&G&&G.players&&myIndex>=0){
+    // If we're the game master, pass the crown to the next active player
+    if(isHost){
+      var successor=null;
+      G.players.forEach(function(q){ if(!successor&&!q.left&&q.uid!==myUid) successor=q.uid; });
+      if(successor) roomRef().update({hostUid:successor}).catch(function(e){ console.error(e); });
+    }
     var p=G.players[myIndex];
     p.left=true;
     if(p.meatInFront){ G.discard.push(p.meatInFront.card); p.meatInFront=null; }
@@ -1205,10 +1283,22 @@ function leaveRoom(){
       np.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
       np.discUsed=0;
       if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
+      turnJustChanged=true;
       sync();
     } else {
       sync();
     }
+  } else if(onlineMode&&roomStatus==="lobby"){
+    // Remove ourselves from the lobby list (and hand over the room if host)
+    var uid=myUid;
+    roomRef().get().then(function(doc){
+      if(!doc.exists) return;
+      var d=doc.data();
+      var list=(d.players||[]).filter(function(q){ return q.uid!==uid; });
+      var upd={players:list};
+      if(d.hostUid===uid&&list.length>0) upd.hostUid=list[0].uid;
+      return roomRef().update(upd);
+    }).catch(function(e){ console.error(e); });
   }
   if(roomUnsub){ roomUnsub(); roomUnsub=null; }
   if(handUnsub){ handUnsub(); handUnsub=null; }
@@ -1216,7 +1306,72 @@ function leaveRoom(){
   lastEvtId=null; finishedShown=false; roomStatus=null;
   clearSession();
   stopMusic();
+  cancelCreate();
   showScr("mode");
+}
+var SKIP_IDLE_MS=45000; // current player considered stuck after 45s
+function updateSkipBanner(){
+  var b=document.getElementById("skip-banner");
+  if(!b) return;
+  var show=onlineMode&&roomStatus==="playing"&&G&&G.players&&G.players.length&&
+           myIndex>=0&&G.cur!==myIndex&&roomTurnAt&&(Date.now()-roomTurnAt>=SKIP_IDLE_MS);
+  if(!show){ b.style.display="none"; return; }
+  var active=[]; G.players.forEach(function(p,i){ if(!p.left) active.push(i); });
+  if(active.indexOf(G.cur)===-1){ b.style.display="none"; return; }
+  var needed=active.length-1;
+  var votes=(roomSkipVotes&&roomSkipVotes.target===G.cur)?(roomSkipVotes.voters||[]):[];
+  var iVoted=votes.indexOf(myUid)>-1;
+  document.getElementById("skip-msg").textContent="⏳ "+G.players[G.cur].name+" seems to be away…";
+  var btn=document.getElementById("skip-btn");
+  btn.textContent=(iVoted?"Voted ✔":"⏭ Vote to skip")+" ("+votes.length+"/"+needed+")";
+  btn.disabled=iVoted;
+  b.style.display="block";
+}
+setInterval(function(){
+  if(onlineMode&&roomStatus==="playing") updateSkipBanner();
+},2000);
+function voteSkip(){
+  if(!onlineMode||!G||!G.players||G.cur===myIndex) return;
+  var target=G.cur;
+  db.runTransaction(function(tx){
+    return tx.get(roomRef()).then(function(doc){
+      if(!doc.exists) return null;
+      var d=doc.data();
+      if(d.status!=="playing"||d.cur!==target) return null;
+      var sv=(d.skipVotes&&d.skipVotes.target===target)?d.skipVotes:{target:target,voters:[]};
+      if(sv.voters.indexOf(myUid)===-1) sv.voters.push(myUid);
+      tx.update(roomRef(),{skipVotes:sv});
+      return sv;
+    });
+  }).then(function(sv){
+    if(!sv) return;
+    roomSkipVotes=sv;
+    var activeCount=G.players.filter(function(p){ return !p.left; }).length;
+    if(sv.voters.length>=activeCount-1){ forceSkip(sv.target); }
+    else { toast("Vote recorded ✔","ok"); updateSkipBanner(); }
+  }).catch(function(e){ console.error(e); toast("Vote failed — try again.","err"); });
+}
+function forceSkip(target){
+  if(!G||!G.players||G.cur!==target) return;
+  var p=G.players[target];
+  log(p.name+" was skipped by a group vote. ⏭","hi");
+  p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
+  p.discUsed=0;
+  if(p.isBlocked){ p.isBlocked=false; p.blockCard=null; }
+  var safety=0;
+  do{ G.cur=(G.cur+1)%G.players.length; safety++; }while(G.players[G.cur].left&&safety<=G.players.length);
+  var np=G.players[G.cur];
+  np.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
+  np.discUsed=0;
+  if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
+  turnJustChanged=true;
+  sync();
+  // If the skipped player was the game master, adopt the crown so
+  // resets and round management stay available to the group
+  if(hostUidCache&&p.uid===hostUidCache){
+    roomRef().update({hostUid:myUid}).catch(function(e){ console.error(e); });
+  }
+  renderGame(); updateSkipBanner();
 }
 function notMyTurn(){
   if(onlineMode&&G.cur!==myIndex){ toast("Not your turn!","err"); return true; }
@@ -1232,12 +1387,17 @@ function setPCount(n){
 }
 function renderPList(){
   var list=document.getElementById("plist"); list.innerHTML="";
+  localChefs=[];
   for(var i=0;i<pcnt;i++){
-    var opts=CHEFS.map(function(c,ci){ return "<option value='"+c+"'"+(ci===i?" selected":"")+">"+c+"</option>"; }).join("");
+    localChefs.push(CHEFS[i%CHEFS.length]);
     var row=document.createElement("div"); row.className="p-row";
-    row.innerHTML="<label>P"+(i+1)+"</label><input class='p-input' id='pn"+i+"' value='Player "+(i+1)+"' onfocus='this.select()'>"+
-      "<select class='p-sel' id='pc"+i+"'>"+opts+"</select>";
+    row.innerHTML="<label>P"+(i+1)+"</label><input class='p-input' id='pn"+i+"' value='Player "+(i+1)+"' onfocus='this.select()'>";
     list.appendChild(row);
+    var pick=document.createElement("div"); pick.className="chef-pick sm"; pick.id="pcpick"+i;
+    list.appendChild(pick);
+    (function(idx){
+      renderChefPick(document.getElementById("pcpick"+idx),localChefs[idx],function(c){ localChefs[idx]=c; });
+    })(i);
   }
 }
 function makePlayer(name,chef){
@@ -1254,7 +1414,7 @@ function startGame(){
   var players=[];
   for(var i=0;i<pcnt;i++){
     var name=(document.getElementById("pn"+i).value||"").trim()||("Player "+(i+1));
-    players.push(makePlayer(name,document.getElementById("pc"+i).value));
+    players.push(makePlayer(name,localChefs[i]||CHEFS[i%CHEFS.length]));
   }
   var deck=buildDeck(players.length);
   players.forEach(function(p){ p.hand=deck.splice(0,5); });
@@ -1324,7 +1484,20 @@ function updateDashToggle(){
 }
 
 // ── LOGO MENU ──
-function toggleLogoMenu(){ document.getElementById("logo-menu").classList.toggle("on"); }
+function toggleLogoMenu(){ updateMenuItems(); document.getElementById("logo-menu").classList.toggle("on"); }
+function updateMenuItems(){
+  var rr=document.getElementById("mi-reset-round"), rg=document.getElementById("mi-reset-game"), ex=document.getElementById("mi-exit");
+  if(!rr||!rg||!ex) return;
+  if(onlineMode){
+    rr.style.display=isHost?"block":"none";
+    rg.style.display=isHost?"block":"none";
+    ex.style.display="block";
+  } else {
+    rr.style.display="block";
+    rg.style.display="block";
+    ex.style.display="none";
+  }
+}
 function menuAction(a){
   document.getElementById("logo-menu").classList.remove("on");
   if(a==="rules") document.getElementById("rules-modal").classList.add("on");
@@ -1338,10 +1511,14 @@ function menuAction(a){
   }
   else if(a==="resetGame"){
     if(onlineMode){
-      showConfirm("Leave Online Game?","You'll leave this room. Others can keep playing.",function(){ leaveRoom(); });
+      if(!isHost){ toast("Only the game master can reset the game.","err"); return; }
+      showConfirm("⚠️ Reset Entire Game?","Everyone returns to the lobby. Scores reset.",function(){ resetGame(); });
     } else {
       showConfirm("⚠️ Reset Entire Game?","All progress lost.",function(){ resetGame(); });
     }
+  }
+  else if(a==="exit"){
+    showConfirm("🚪 Exit Game?","You'll leave this room. The other players can keep playing.",function(){ leaveRoom(); });
   }
 }
 function showConfirm(title,msg,fn){
@@ -1579,6 +1756,7 @@ function doSlow(){
 var discMax=2;
 function openDiscardModal(){
   if(notMyTurn()) return;
+  discBusy=false;
   var p=G.players[G.cur];
   var used=p.discUsed||0;
   if(used>=2){ toast("Already discarded 2 cards this turn!","err"); return; }
@@ -1604,6 +1782,8 @@ function updateDiscInst(){ document.getElementById("disc-inst").textContent=selD
 function confirmDiscard(){
   var p=G.players[G.cur];
   if(selDiscards.length===0){ toast("Select cards first"); return; }
+  if(discBusy) return;
+  discBusy=true;
   selDiscards.slice().sort(function(a,b){return b-a;}).forEach(function(i){ G.discard.push(p.hand.splice(i,1)[0]); });
   p.discUsed=(p.discUsed||0)+selDiscards.length;
   p.done.disc=(p.discUsed>=2);
@@ -1655,7 +1835,12 @@ function advanceTurn(){
     // No handoff screen online — the next player's meat becomes ready
     // as their turn begins (equivalent to the reveal step in local play)
     var np=G.players[G.cur];
+    // Fresh-turn reset for the incoming player: guarantees discards/actions
+    // are never blocked by stale synced state (fix for stuck 2nd discard)
+    np.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
+    np.discUsed=0;
     if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
+    turnJustChanged=true;
     sync(); renderGame();
   } else {
     showHandoff();
