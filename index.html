@@ -101,6 +101,9 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 .music-menu-btn{padding:9px 14px;border-radius:8px;border:none;background:transparent;color:var(--cr);font-family:'GameFont',sans-serif;font-size:0.92rem;cursor:pointer;text-align:left;width:100%;transition:background .15s}
 .music-menu-btn:hover,.music-menu-btn:active{background:rgba(249,161,27,0.15);color:var(--ye)}
 .music-menu-btn.playing{color:var(--ye)}
+.music-vol-row{display:flex;align-items:center;gap:8px;padding:2px 14px 8px;width:100%}
+.music-vol-row span{font-size:0.85rem}
+.music-vol-row input[type=range]{flex:1;accent-color:var(--or);cursor:pointer;min-width:0}
 
 /* Game body */
 .gbody{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative}
@@ -126,7 +129,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 /* Desktop pile sizes — 50% larger */
 .pile{width:var(--pw);height:var(--ph);border-radius:10px;border:2px dashed rgba(249,161,27,0.22);display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);position:relative;overflow:hidden}
 .pile img{width:100%;height:100%;object-fit:cover;border-radius:9px}
-.pile-cnt{position:absolute;bottom:-7px;right:-7px;background:var(--br);border:1.5px solid var(--or);color:var(--or);font-family:'GameFont',sans-serif;font-size:0.7rem;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.pile-cnt{position:absolute;bottom:3px;right:3px;background:var(--br);border:1.5px solid var(--or);color:var(--or);font-family:'GameFont',sans-serif;font-size:0.7rem;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .tig-pile{width:var(--pw);height:var(--ph);border-radius:10px;overflow:hidden;border:2px solid rgba(249,161,27,0.5);box-shadow:0 8px 24px rgba(249,161,27,0.32);position:relative}
 .tig-pile img{width:100%;height:100%;object-fit:cover}
 .tig-cnt{position:absolute;bottom:0;left:0;right:0;background:rgba(18,4,0,0.85);padding:4px;font-family:'GameFont',sans-serif;font-size:0.72rem;color:var(--ye);text-align:center}
@@ -464,32 +467,23 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 <body>
 <div id="app">
 
-<!-- MODE SELECT -->
+<!-- LANDING / MODE SELECT -->
 <div id="mode" class="scr on">
+  <img id="mode-logo" src="" class="logo-img" alt="Tiger Chef">
   <div class="sbox">
-    <h2>🐯 Tiger Chef</h2>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:14px">How do you want to play?</p>
-    <button class="btn-go" onclick="showScr('ss')" style="margin-bottom:10px">📱 Local Play (Pass &amp; Play)</button>
-    <button class="btn-go" onclick="showScr('rc')" style="margin-bottom:10px">🌐 Create Online Room</button>
-    <button class="btn-go" onclick="showScr('rj')">🔗 Join Online Room</button>
-  </div>
-</div>
-
-<!-- CREATE ROOM -->
-<div id="rc" class="scr">
-  <div class="sbox">
-    <h2>🌐 Create Room</h2>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Your name &amp; chef</p>
-    <div class="p-row"><label>You</label><input class="p-input" id="rc-name" value="Player 1"><select class="p-sel" id="rc-chef"></select></div>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players total?</p>
-    <div class="cnt-btns" id="rc-cnt-btns">
+    <div id="mode-invite" style="display:none;text-align:center;font-size:0.8rem;color:var(--ye);font-family:'GameFont',sans-serif;margin-bottom:10px">🔗 You've been invited to a room! Enter your name, then tap Join.</div>
+    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:8px">Your name &amp; chef</p>
+    <div class="p-row"><label>You</label><input class="p-input" id="lp-name" placeholder="Enter your name" onfocus="this.select()"><select class="p-sel" id="lp-chef"></select></div>
+    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players?</p>
+    <div class="cnt-btns" id="mode-cnt-btns">
       <button class="cnt-btn" onclick="setRcCount(2)">2</button>
       <button class="cnt-btn" onclick="setRcCount(3)">3</button>
       <button class="cnt-btn" onclick="setRcCount(4)">4</button>
       <button class="cnt-btn" onclick="setRcCount(5)">5</button>
     </div>
-    <button class="btn-go" id="rc-create-btn" onclick="createRoom()" style="margin-top:14px">🚀 Create Room</button>
-    <button class="mcancel" onclick="showScr('mode')" style="margin-top:8px;width:100%">Back</button>
+    <button class="btn-go" onclick="goLocal()" style="margin-top:14px;margin-bottom:10px">📱 Create a Local Game (Pass &amp; Play)</button>
+    <button class="btn-go" onclick="createRoom()" style="margin-bottom:10px">🌐 Create an Online Room</button>
+    <button class="btn-go" onclick="showJoin()">🔗 Join an Online Room</button>
   </div>
 </div>
 
@@ -497,11 +491,9 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 <div id="rj" class="scr">
   <div class="sbox">
     <h2>🔗 Join Room</h2>
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Room code</p>
+    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Enter the 4-letter room code</p>
     <input class="p-input" id="rj-code" style="width:100%;text-align:center;font-size:1.3rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px" maxlength="4" placeholder="ABCD">
-    <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Your name &amp; chef</p>
-    <div class="p-row"><label>You</label><input class="p-input" id="rj-name" value="Player"><select class="p-sel" id="rj-chef"></select></div>
-    <button class="btn-go" id="rj-join-btn" onclick="joinRoom()" style="margin-top:14px">🚪 Join Room</button>
+    <button class="btn-go" id="rj-join-btn" onclick="joinRoom()">🚪 Join Room</button>
     <button class="mcancel" onclick="showScr('mode')" style="margin-top:8px;width:100%">Back</button>
   </div>
 </div>
@@ -513,6 +505,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
     <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:6px">Room Code — share with friends</p>
     <div id="rl-code" style="text-align:center;font-size:2.2rem;letter-spacing:6px;font-weight:bold;color:var(--or);margin-bottom:16px;font-family:'GameFont',sans-serif">----</div>
     <div id="rl-players" style="margin-bottom:16px"></div>
+    <button class="mcancel" onclick="copyInvite()" style="width:100%;margin-bottom:12px">📋 Copy Invite Link</button>
     <div id="rl-host-msg" style="text-align:center;font-size:0.8rem;color:rgba(255,245,230,0.5);margin-bottom:10px"></div>
     <button class="btn-go" id="rl-start-btn" onclick="startOnlineGame()" style="display:none">🐯 Start Game!</button>
     <button class="mcancel" onclick="leaveRoom()" style="margin-top:8px;width:100%">Leave Room</button>
@@ -557,6 +550,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
     </button>
     <div class="logo-menu" id="logo-menu">
       <button class="music-menu-btn" id="music-menu-btn" onclick="toggleMusic()">🎵 Music Off</button>
+      <div class="music-vol-row"><span>🔉</span><input type="range" id="music-vol" min="0" max="100" value="55" oninput="setMusicVol(this.value)"><span>🔊</span></div>
       <div class="logo-menu-sep"></div>
       <button class="logo-menu-item" onclick="menuAction('rules')">📖 Game Rules</button>
       <div class="logo-menu-sep"></div>
@@ -768,9 +762,16 @@ var IMG={
 // ── AUDIO ──
 var bgMusic=document.getElementById("bg-music");
 var musicPlaying=false;
+var musicVol=0.55;
+try{ var sv=localStorage.getItem("tcVol"); if(sv!==null) musicVol=Math.max(0,Math.min(1,parseInt(sv,10)/100)); }catch(e){}
 
+function setMusicVol(v){
+  musicVol=Math.max(0,Math.min(1,v/100));
+  bgMusic.volume=musicVol;
+  try{ localStorage.setItem("tcVol",v); }catch(e){}
+}
 function startMusic(){
-  bgMusic.volume=0.55;
+  bgMusic.volume=musicVol;
   var p=bgMusic.play();
   if(p&&p.catch) p.catch(function(){});
   musicPlaying=true;
@@ -890,12 +891,54 @@ function chefOptionsHtml(sel){
   return CHEFS.map(function(c){ return "<option value='"+c+"'"+(c===sel?" selected":"")+">"+c+"</option>"; }).join("");
 }
 function initOnlineChefSelects(){
-  document.getElementById("rc-chef").innerHTML=chefOptionsHtml("Joanne");
-  document.getElementById("rj-chef").innerHTML=chefOptionsHtml("Sidd");
+  document.getElementById("lp-chef").innerHTML=chefOptionsHtml("Joanne");
+  // Prefill name/chef from last visit
+  try{
+    var n=localStorage.getItem("tcName"), c=localStorage.getItem("tcChef");
+    if(n) document.getElementById("lp-name").value=n;
+    if(c&&CHEFS.indexOf(c)>-1) document.getElementById("lp-chef").value=c;
+  }catch(e){}
+  // Copy logo from local-setup screen to landing (same image, no duplication)
+  var src=document.querySelector("#ss .logo-img");
+  if(src) document.getElementById("mode-logo").src=src.src;
 }
+function landingName(def){
+  var n=(document.getElementById("lp-name").value||"").trim()||def;
+  var c=document.getElementById("lp-chef").value;
+  try{ localStorage.setItem("tcName",n); localStorage.setItem("tcChef",c); }catch(e){}
+  return {name:n,chef:c};
+}
+function goLocal(){
+  var me=landingName("Player 1");
+  setPCount(rcCount);
+  var n0=document.getElementById("pn0"), c0=document.getElementById("pc0");
+  if(n0) n0.value=me.name;
+  if(c0) c0.value=me.chef;
+  showScr("ss");
+}
+function showJoin(){
+  showScr("rj");
+  var inp=document.getElementById("rj-code");
+  if(inviteCode){ inp.value=inviteCode; }
+  inp.focus();
+}
+function copyInvite(){
+  var link=location.origin+location.pathname+"?room="+roomCode;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(function(){ toast("Invite link copied! 📋","ok"); })
+      .catch(function(){ prompt("Copy this invite link:",link); });
+  } else { prompt("Copy this invite link:",link); }
+}
+var inviteCode=null;
+(function(){
+  try{
+    var m=location.search.match(/[?&]room=([A-Za-z0-9]{4})/);
+    if(m){ inviteCode=m[1].toUpperCase(); }
+  }catch(e){}
+})();
 function setRcCount(n){
   rcCount=n;
-  document.querySelectorAll("#rc-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
+  document.querySelectorAll("#mode-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
 }
 function genRoomCode(){
   var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -917,14 +960,13 @@ function clearSession(){ try{ localStorage.removeItem("tcRoom"); }catch(e){} }
 
 function createRoom(){
   waitForAuth(function(){
-    var name=(document.getElementById("rc-name").value||"").trim()||"Player 1";
-    var chef=document.getElementById("rc-chef").value;
+    var me=landingName("Player 1");
     var code=genRoomCode();
     var ref=db.collection("rooms").doc(code);
     ref.set({
       hostUid:myUid, maxPlayers:rcCount, status:"lobby",
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-      players:[{uid:myUid,name:name,chef:chef}]
+      players:[{uid:myUid,name:me.name,chef:me.chef}]
     }).then(function(){
       roomCode=code; isHost=true; onlineMode=true; myIndex=0;
       saveSession(); subscribePrivate(); listenToRoom(code); showScr("rl");
@@ -934,8 +976,7 @@ function createRoom(){
 function joinRoom(){
   waitForAuth(function(){
     var code=(document.getElementById("rj-code").value||"").trim().toUpperCase();
-    var name=(document.getElementById("rj-name").value||"").trim()||"Player";
-    var chef=document.getElementById("rj-chef").value;
+    var me=landingName("Player");
     if(code.length!==4){ toast("Enter a 4-letter room code.","err"); return; }
     var ref=db.collection("rooms").doc(code);
     db.runTransaction(function(tx){
@@ -946,7 +987,7 @@ function joinRoom(){
         if(mine>-1) return {rejoin:true,idx:mine,host:data.hostUid===myUid,status:data.status};
         if(data.status!=="lobby") throw {code:"started"};
         if(data.players.length>=data.maxPlayers) throw {code:"full"};
-        var players=data.players.concat([{uid:myUid,name:name,chef:chef}]);
+        var players=data.players.concat([{uid:myUid,name:me.name,chef:me.chef}]);
         tx.update(ref,{players:players});
         return {rejoin:false,idx:players.length-1,host:false,status:"lobby"};
       });
@@ -990,11 +1031,13 @@ function subscribePrivate(){
       }
     },function(err){ console.error(err); });
 }
+var roomStatus=null;
 function listenToRoom(code){
   if(roomUnsub) roomUnsub();
   roomUnsub=db.collection("rooms").doc(code).onSnapshot(function(doc){
     if(!doc.exists) return;
     var data=doc.data();
+    roomStatus=data.status;
     myIndex=data.players.findIndex(function(p){return p.uid===myUid;});
     if(data.status==="lobby"){
       finishedShown=false;
@@ -1036,6 +1079,7 @@ function packPlayers(){
       tigerCards:p.tigerCards,roundsWon:p.roundsWon,
       isBlocked:!!p.isBlocked,blockCard:p.blockCard||null,
       meatInFront:p.meatInFront||null,done:p.done,
+      discUsed:p.discUsed||0,left:!!p.left,
       handCount:(i===myIndex?p.hand.length:(p.handCount||0))};
   });
 }
@@ -1066,24 +1110,29 @@ function startOnlineGame(){
       logs:[{m:"Game started! Round 1 🐯",t:"hi"}],
       players:full.map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef,
         tigerCards:0,roundsWon:0,isBlocked:false,blockCard:null,meatInFront:null,
-        done:p.done,handCount:5}; })
+        discUsed:0,left:false,done:p.done,handCount:5}; })
     });
     batch.commit().then(function(){ startMusic(); })
       .catch(function(e){ console.error(e); toast("Couldn't start — try again.","err"); });
   });
 }
 function onlineNewRound(winnerIdx){
-  var deck=buildDeck(G.players.length);
+  var deck=buildDeck(G.players.filter(function(p){return !p.left;}).length);
   var hands=G.players.map(function(){ return deck.splice(0,5); });
   var batch=db.batch();
   G.players.forEach(function(p,i){
-    p.tigerCards=0; p.isBlocked=false; p.blockCard=null; p.meatInFront=null;
+    p.tigerCards=0; p.isBlocked=false; p.blockCard=null; p.meatInFront=null; p.discUsed=0;
     p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
     p.handCount=5;
     if(i===myIndex){ p.hand=hands[i]; myHand=hands[i].slice(); }
     batch.set(roomRef().collection("private").doc(p.uid),{hand:hands[i]});
   });
-  G.deck=deck; G.discard=[]; G.tigerDeck=18; G.cur=winnerIdx;
+  G.deck=deck; G.discard=[]; G.tigerDeck=18;
+  G.cur=winnerIdx;
+  if(G.players[G.cur].left){
+    var safety=0;
+    do{ G.cur=(G.cur+1)%G.players.length; safety++; }while(G.players[G.cur].left&&safety<=G.players.length);
+  }
   G.logs=(G.logs||[]).concat(pendingLogs); pendingLogs=[];
   if(G.logs.length>30) G.logs=G.logs.slice(-30);
   batch.update(roomRef(),{
@@ -1138,11 +1187,35 @@ function renderLogs(){
   });
 }
 function leaveRoom(){
+  // If leaving mid-game, hand the turn over so others can continue
+  if(onlineMode&&roomStatus==="playing"&&G&&G.players&&myIndex>=0){
+    var p=G.players[myIndex];
+    p.left=true;
+    if(p.meatInFront){ G.discard.push(p.meatInFront.card); p.meatInFront=null; }
+    log(p.name+" left the game. 🚪","hi");
+    var active=[];
+    G.players.forEach(function(q,i){ if(!q.left) active.push(i); });
+    if(active.length===1){
+      onlineFinish(active[0]); // last player standing wins
+    } else if(active.length>=2&&G.cur===myIndex){
+      // Skip past me (and any other departed players) to the next active player
+      var safety=0;
+      do{ G.cur=(G.cur+1)%G.players.length; safety++; }while(G.players[G.cur].left&&safety<=G.players.length);
+      var np=G.players[G.cur];
+      np.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
+      np.discUsed=0;
+      if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
+      sync();
+    } else {
+      sync();
+    }
+  }
   if(roomUnsub){ roomUnsub(); roomUnsub=null; }
   if(handUnsub){ handUnsub(); handUnsub=null; }
   onlineMode=false; roomCode=null; isHost=false; myIndex=-1; myHand=[];
-  lastEvtId=null; finishedShown=false;
+  lastEvtId=null; finishedShown=false; roomStatus=null;
   clearSession();
+  stopMusic();
   showScr("mode");
 }
 function notMyTurn(){
@@ -1162,14 +1235,14 @@ function renderPList(){
   for(var i=0;i<pcnt;i++){
     var opts=CHEFS.map(function(c,ci){ return "<option value='"+c+"'"+(ci===i?" selected":"")+">"+c+"</option>"; }).join("");
     var row=document.createElement("div"); row.className="p-row";
-    row.innerHTML="<label>P"+(i+1)+"</label><input class='p-input' id='pn"+i+"' value='Player "+(i+1)+"'>"+
+    row.innerHTML="<label>P"+(i+1)+"</label><input class='p-input' id='pn"+i+"' value='Player "+(i+1)+"' onfocus='this.select()'>"+
       "<select class='p-sel' id='pc"+i+"'>"+opts+"</select>";
     list.appendChild(row);
   }
 }
 function makePlayer(name,chef){
   return{name:name,chef:chef,hand:[],tigerCards:0,roundsWon:0,
-    isBlocked:false,blockCard:null,meatInFront:null,
+    isBlocked:false,blockCard:null,meatInFront:null,discUsed:0,
     done:{fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false}};
 }
 function buildDeck(n){
@@ -1197,7 +1270,7 @@ function buildAndDealDeck(){
   var deck=buildDeck(G.players.length);
   G.players.forEach(function(p){
     p.hand=deck.splice(0,5);
-    p.tigerCards=0; p.isBlocked=false; p.blockCard=null; p.meatInFront=null;
+    p.tigerCards=0; p.isBlocked=false; p.blockCard=null; p.meatInFront=null; p.discUsed=0;
     p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
   });
   G.deck=deck; G.discard=[]; G.tigerDeck=18; selCard=null;
@@ -1208,17 +1281,17 @@ function resetGame(){
   if(crown) crown.style.display="none";
   if(onlineMode){
     // Back to the shared lobby (keeps everyone in the room, fresh scores)
-    var slim=G.players.map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef}; });
+    var slim=G.players.filter(function(p){ return !p.left; }).map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef}; });
     roomRef().update({status:"lobby",players:slim}).catch(function(e){ console.error(e); });
     return; // everyone (including us) moves to lobby via the room snapshot
   }
   showScr("ss");
 }
-function tigerTarget(){ var n=G.players.length; if(n===2) return 6; if(n<=4) return 5; return 4; }
+function tigerTarget(){ var n=G.players.filter(function(p){ return !p.left; }).length||G.players.length; if(n===2) return 6; if(n<=4) return 5; return 4; }
 
 // ── SCREENS ──
 function showScr(id){
-  ["mode","ss","rc","rj","rl","hs","gs","ws"].forEach(function(s){ document.getElementById(s).classList.remove("on"); });
+  ["mode","ss","rj","rl","hs","gs","ws"].forEach(function(s){ document.getElementById(s).classList.remove("on"); });
   document.getElementById(id).classList.add("on");
 }
 function showHandoff(){
@@ -1346,6 +1419,16 @@ function renderGame(){
   G.players.forEach(function(op,i){
     if(i===meIdx) return;
     var d=document.createElement("div"); d.className="opp-card";
+    if(op.left){
+      d.style.opacity="0.4";
+      var li=document.createElement("img"); li.src=IMG.chefs[op.chef]; li.className="opp-img"; li.style.filter="grayscale(1)";
+      var linf=document.createElement("div");
+      var lnm=document.createElement("div"); lnm.className="opp-nm"; lnm.textContent=op.name;
+      var lst=document.createElement("div"); lst.className="opp-st"; lst.textContent="🚪 Left the game";
+      linf.appendChild(lnm); linf.appendChild(lst);
+      d.appendChild(li); d.appendChild(linf); oa.appendChild(d);
+      return;
+    }
     if(onlineMode&&i===G.cur) d.style.cssText="outline:2px solid var(--or);border-radius:8px";
     var oi=document.createElement("img"); oi.src=IMG.chefs[op.chef]; oi.className="opp-img";
     if(op.isBlocked) oi.style.cssText="border:2px solid var(--re);border-radius:4px";
@@ -1398,7 +1481,7 @@ function updateBtns(){
   document.getElementById("b3").disabled=wait||dr||d.feed||!mr||p.isBlocked||G.tigerDeck<=0;
   document.getElementById("b4").disabled=wait||dr||d.quick||!hasVan||!hasMeat||p.isBlocked||G.tigerDeck<=0;
   document.getElementById("b5").disabled=wait||dr||d.slow||!hasMeat||p.isBlocked||!!p.meatInFront;
-  document.getElementById("b6").disabled=wait||dr||d.disc||p.hand.length===0;
+  document.getElementById("b6").disabled=wait||dr||((p.discUsed||0)>=2)||p.hand.length===0;
   // Ghost "Draw & End" when hand already has 5 cards (no draw needed)
   var handFull=p.hand.length>=5;
   document.getElementById("b7").disabled=wait||d.draw||handFull;
@@ -1433,7 +1516,7 @@ function openBlockModal(){
   if(bcs.length===0){ toast("No Block cards in hand!","err"); return; }
   var list=document.getElementById("blk-list"); list.innerHTML="";
   G.players.forEach(function(op,oi){
-    if(oi===G.cur) return;
+    if(oi===G.cur||op.left) return;
     bcs.forEach(function(bc){
       var btn=document.createElement("button"); btn.className="tgt-btn"+(op.isBlocked?" dis":"");
       var n1=document.createElement("div"); n1.style.cssText="font-size:0.7rem;color:rgba(255,245,230,0.45);margin-bottom:2px"; n1.textContent=CARDS[bc.c].name;
@@ -1493,10 +1576,13 @@ function doSlow(){
   p.meatInFront={card:card,ready:false}; p.done.slow=true; selCard=null;
   log(p.name+" placed Meat. Feed Tiger NEXT turn. 🥩"); toast("🥩 Meat placed! Feed next turn."); sync(); renderGame();
 }
+var discMax=2;
 function openDiscardModal(){
   if(notMyTurn()) return;
   var p=G.players[G.cur];
-  if(p.done.disc){ toast("Already discarded this turn!","err"); return; }
+  var used=p.discUsed||0;
+  if(used>=2){ toast("Already discarded 2 cards this turn!","err"); return; }
+  discMax=2-used;
   selDiscards=[];
   var c=document.getElementById("disc-cards"); c.innerHTML="";
   p.hand.forEach(function(ct,i){
@@ -1511,15 +1597,17 @@ function openDiscardModal(){
 function toggleDiscard(idx){
   var pos=selDiscards.indexOf(idx);
   if(pos>-1){ selDiscards.splice(pos,1); document.getElementById("dc"+idx).classList.remove("sel"); }
-  else{ if(selDiscards.length>=2){ toast("Max 2 cards!","err"); return; } selDiscards.push(idx); document.getElementById("dc"+idx).classList.add("sel"); }
+  else{ if(selDiscards.length>=discMax){ toast("Max "+discMax+" card"+(discMax>1?"s":"")+"!","err"); return; } selDiscards.push(idx); document.getElementById("dc"+idx).classList.add("sel"); }
   updateDiscInst();
 }
-function updateDiscInst(){ document.getElementById("disc-inst").textContent=selDiscards.length+" of 2 selected"; }
+function updateDiscInst(){ document.getElementById("disc-inst").textContent=selDiscards.length+" of "+discMax+" selected"; }
 function confirmDiscard(){
   var p=G.players[G.cur];
   if(selDiscards.length===0){ toast("Select cards first"); return; }
   selDiscards.slice().sort(function(a,b){return b-a;}).forEach(function(i){ G.discard.push(p.hand.splice(i,1)[0]); });
-  p.done.disc=true; selCard=null; log(p.name+" discarded "+selDiscards.length+" card"+(selDiscards.length>1?"s":"")+". 🗑️");
+  p.discUsed=(p.discUsed||0)+selDiscards.length;
+  p.done.disc=(p.discUsed>=2);
+  selCard=null; log(p.name+" discarded "+selDiscards.length+" card"+(selDiscards.length>1?"s":"")+". 🗑️");
   closeModal("disc-modal"); sync(); renderGame();
 }
 function doDraw(){
@@ -1559,7 +1647,10 @@ function advanceTurn(){
   var p=G.players[G.cur];
   if(p.isBlocked){ log(p.name+"'s Block expired. 🔓"); p.isBlocked=false; p.blockCard=null; }
   p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
-  selCard=null; G.cur=(G.cur+1)%G.players.length;
+  p.discUsed=0;
+  selCard=null;
+  var safety=0;
+  do{ G.cur=(G.cur+1)%G.players.length; safety++; }while(G.players[G.cur].left&&safety<=G.players.length);
   if(onlineMode){
     // No handoff screen online — the next player's meat becomes ready
     // as their turn begins (equivalent to the reveal step in local play)
@@ -1624,6 +1715,9 @@ function log(msg,type){ if(onlineMode) pendingLogs.push({m:msg,t:type||""}); var
 setPCount(2);
 setRcCount(2);
 renderPList();
+var volSlider=document.getElementById("music-vol");
+if(volSlider) volSlider.value=Math.round(musicVol*100);
+if(inviteCode){ document.getElementById("mode-invite").style.display="block"; }
 tryRejoin();
 </script>
 </body>
