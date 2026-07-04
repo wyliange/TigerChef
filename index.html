@@ -878,10 +878,13 @@ var onlineMode=false;
 var roomCode=null;
 var isHost=false;
 var myIndex=-1;
-var rcCount=4;
+var rcCount=2;
 var roomUnsub=null;
 var handUnsub=null;
 var myHand=[];
+var pendingLogs=[];
+var lastEvtId=null;
+var finishedShown=false;
 
 function chefOptionsHtml(sel){
   return CHEFS.map(function(c){ return "<option value='"+c+"'"+(c===sel?" selected":"")+">"+c+"</option>"; }).join("");
@@ -895,7 +898,7 @@ function setRcCount(n){
   document.querySelectorAll("#rc-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
 }
 function genRoomCode(){
-  var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusing chars
+  var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var s=""; for(var i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)];
   return s;
 }
@@ -908,22 +911,23 @@ function waitForAuth(cb){
     else if(tries>50){ clearInterval(iv); toast("Connection issue — please refresh.","err"); }
   },100);
 }
+function roomRef(){ return db.collection("rooms").doc(roomCode); }
+function saveSession(){ try{ localStorage.setItem("tcRoom",roomCode); }catch(e){} }
+function clearSession(){ try{ localStorage.removeItem("tcRoom"); }catch(e){} }
+
 function createRoom(){
   waitForAuth(function(){
     var name=(document.getElementById("rc-name").value||"").trim()||"Player 1";
     var chef=document.getElementById("rc-chef").value;
     var code=genRoomCode();
-    var roomRef=db.collection("rooms").doc(code);
-    roomRef.get().then(function(){
-      var players=[{uid:myUid,name:name,chef:chef}];
-      return roomRef.set({
-        hostUid:myUid, maxPlayers:rcCount, status:"lobby",
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-        players:players
-      });
+    var ref=db.collection("rooms").doc(code);
+    ref.set({
+      hostUid:myUid, maxPlayers:rcCount, status:"lobby",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      players:[{uid:myUid,name:name,chef:chef}]
     }).then(function(){
       roomCode=code; isHost=true; onlineMode=true; myIndex=0;
-      listenToRoom(code); showScr("rl");
+      saveSession(); subscribePrivate(); listenToRoom(code); showScr("rl");
     }).catch(function(err){ console.error(err); toast("Couldn't create room — try again.","err"); });
   });
 }
@@ -933,32 +937,72 @@ function joinRoom(){
     var name=(document.getElementById("rj-name").value||"").trim()||"Player";
     var chef=document.getElementById("rj-chef").value;
     if(code.length!==4){ toast("Enter a 4-letter room code.","err"); return; }
-    var roomRef=db.collection("rooms").doc(code);
-    roomRef.get().then(function(doc){
-      if(!doc.exists){ toast("Room not found.","err"); return; }
-      var data=doc.data();
-      if(data.status!=="lobby"){ toast("That game has already started.","err"); return; }
-      if(data.players.some(function(p){return p.uid===myUid;})){
-        roomCode=code; isHost=(data.hostUid===myUid); onlineMode=true;
-        myIndex=data.players.findIndex(function(p){return p.uid===myUid;});
-        listenToRoom(code); showScr("rl"); return;
-      }
-      if(data.players.length>=data.maxPlayers){ toast("Room is full.","err"); return; }
-      var players=data.players.concat([{uid:myUid,name:name,chef:chef}]);
-      return roomRef.update({players:players}).then(function(){
-        roomCode=code; isHost=false; onlineMode=true; myIndex=players.length-1;
-        listenToRoom(code); showScr("rl");
+    var ref=db.collection("rooms").doc(code);
+    db.runTransaction(function(tx){
+      return tx.get(ref).then(function(doc){
+        if(!doc.exists) throw {code:"nf"};
+        var data=doc.data();
+        var mine=data.players.findIndex(function(p){return p.uid===myUid;});
+        if(mine>-1) return {rejoin:true,idx:mine,host:data.hostUid===myUid,status:data.status};
+        if(data.status!=="lobby") throw {code:"started"};
+        if(data.players.length>=data.maxPlayers) throw {code:"full"};
+        var players=data.players.concat([{uid:myUid,name:name,chef:chef}]);
+        tx.update(ref,{players:players});
+        return {rejoin:false,idx:players.length-1,host:false,status:"lobby"};
       });
-    }).catch(function(err){ console.error(err); toast("Couldn't join room — try again.","err"); });
+    }).then(function(res){
+      roomCode=code; isHost=res.host; onlineMode=true; myIndex=res.idx;
+      saveSession(); subscribePrivate(); listenToRoom(code);
+      showScr(res.status==="playing"?"gs":"rl");
+    }).catch(function(err){
+      if(err&&err.code==="nf") toast("Room not found.","err");
+      else if(err&&err.code==="started") toast("That game has already started.","err");
+      else if(err&&err.code==="full") toast("Room is full.","err");
+      else { console.error(err); toast("Couldn't join room — try again.","err"); }
+    });
   });
+}
+function tryRejoin(){
+  var code=null;
+  try{ code=localStorage.getItem("tcRoom"); }catch(e){}
+  if(!code) return;
+  waitForAuth(function(){
+    db.collection("rooms").doc(code).get().then(function(doc){
+      if(!doc.exists){ clearSession(); return; }
+      var d=doc.data();
+      var idx=d.players.findIndex(function(p){return p.uid===myUid;});
+      if(idx<0||d.status==="finished"){ clearSession(); return; }
+      roomCode=code; onlineMode=true; isHost=(d.hostUid===myUid); myIndex=idx;
+      subscribePrivate(); listenToRoom(code);
+      showScr(d.status==="lobby"?"rl":"gs");
+      toast("Reconnected to room "+code+" 🔗","ok");
+    }).catch(function(e){ console.error(e); });
+  });
+}
+function subscribePrivate(){
+  if(handUnsub) handUnsub();
+  handUnsub=db.collection("rooms").doc(roomCode).collection("private").doc(myUid)
+    .onSnapshot(function(doc){
+      myHand=(doc.exists&&doc.data().hand)||[];
+      if(onlineMode&&G&&G.players&&myIndex>=0){
+        G.players[myIndex].hand=myHand.slice();
+        if(document.getElementById("gs").classList.contains("on")) renderGame();
+      }
+    },function(err){ console.error(err); });
 }
 function listenToRoom(code){
   if(roomUnsub) roomUnsub();
   roomUnsub=db.collection("rooms").doc(code).onSnapshot(function(doc){
     if(!doc.exists) return;
     var data=doc.data();
-    if(data.status==="lobby"){ renderLobby(data); }
-    else if(data.status==="playing"){ onRoomStateChanged(data); }
+    myIndex=data.players.findIndex(function(p){return p.uid===myUid;});
+    if(data.status==="lobby"){
+      finishedShown=false;
+      renderLobby(data);
+      var cur=document.querySelector(".scr.on");
+      if(cur&&(cur.id==="gs"||cur.id==="ws")) showScr("rl");
+    }
+    else if(data.status==="playing"||data.status==="finished"){ onRoomStateChanged(data); }
   }, function(err){ console.error(err); });
 }
 function renderLobby(data){
@@ -974,35 +1018,143 @@ function renderLobby(data){
   }
   var hostMsg=document.getElementById("rl-host-msg");
   var startBtn=document.getElementById("rl-start-btn");
-  var full=data.players.length>=data.maxPlayers;
+  var joined=data.players.length;
+  var can=joined>=2;
   if(isHost){
-    hostMsg.textContent=full?"Everyone's in — ready when you are!":"Waiting for more players to join...";
+    hostMsg.textContent=joined+" of "+data.maxPlayers+" joined"+(can?" — you can start any time!":"");
     startBtn.style.display="block";
-    startBtn.disabled=!full;
-    startBtn.style.opacity=full?"1":"0.4";
+    startBtn.disabled=!can;
+    startBtn.style.opacity=can?"1":"0.4";
   } else {
-    hostMsg.textContent="Waiting for the host to start the game...";
+    hostMsg.textContent=joined+" of "+data.maxPlayers+" joined. Waiting for the host to start...";
     startBtn.style.display="none";
   }
 }
+function packPlayers(){
+  return G.players.map(function(p,i){
+    return {uid:p.uid,name:p.name,chef:p.chef,
+      tigerCards:p.tigerCards,roundsWon:p.roundsWon,
+      isBlocked:!!p.isBlocked,blockCard:p.blockCard||null,
+      meatInFront:p.meatInFront||null,done:p.done,
+      handCount:(i===myIndex?p.hand.length:(p.handCount||0))};
+  });
+}
+function sync(evt){
+  if(!onlineMode) return;
+  G.logs=(G.logs||[]).concat(pendingLogs); pendingLogs=[];
+  if(G.logs.length>30) G.logs=G.logs.slice(-30);
+  var payload={players:packPlayers(),deck:G.deck,discard:G.discard,
+    tigerDeck:G.tigerDeck,cur:G.cur,round:G.round,logs:G.logs};
+  if(evt){ evt.id=Date.now()+"-"+Math.random().toString(36).slice(2,7); payload.evt=evt; }
+  var batch=db.batch();
+  batch.update(roomRef(),payload);
+  batch.set(roomRef().collection("private").doc(myUid),{hand:G.players[myIndex].hand});
+  batch.commit().catch(function(e){ console.error(e); toast("Sync error — check connection.","err"); });
+}
 function startOnlineGame(){
-  toast("Game sync coming in the next step! 🚧");
+  if(!isHost) return;
+  roomRef().get().then(function(doc){
+    var d=doc.data();
+    if(d.players.length<2){ toast("Need at least 2 players!","err"); return; }
+    var full=d.players.map(function(p){ var q=makePlayer(p.name,p.chef); q.uid=p.uid; return q; });
+    var deck=buildDeck(full.length);
+    full.forEach(function(p){ p.hand=deck.splice(0,5); });
+    var batch=db.batch();
+    full.forEach(function(p){ batch.set(roomRef().collection("private").doc(p.uid),{hand:p.hand}); });
+    batch.update(roomRef(),{
+      status:"playing",cur:0,round:1,deck:deck,discard:[],tigerDeck:18,
+      logs:[{m:"Game started! Round 1 🐯",t:"hi"}],
+      players:full.map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef,
+        tigerCards:0,roundsWon:0,isBlocked:false,blockCard:null,meatInFront:null,
+        done:p.done,handCount:5}; })
+    });
+    batch.commit().then(function(){ startMusic(); })
+      .catch(function(e){ console.error(e); toast("Couldn't start — try again.","err"); });
+  });
+}
+function onlineNewRound(winnerIdx){
+  var deck=buildDeck(G.players.length);
+  var hands=G.players.map(function(){ return deck.splice(0,5); });
+  var batch=db.batch();
+  G.players.forEach(function(p,i){
+    p.tigerCards=0; p.isBlocked=false; p.blockCard=null; p.meatInFront=null;
+    p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
+    p.handCount=5;
+    if(i===myIndex){ p.hand=hands[i]; myHand=hands[i].slice(); }
+    batch.set(roomRef().collection("private").doc(p.uid),{hand:hands[i]});
+  });
+  G.deck=deck; G.discard=[]; G.tigerDeck=18; G.cur=winnerIdx;
+  G.logs=(G.logs||[]).concat(pendingLogs); pendingLogs=[];
+  if(G.logs.length>30) G.logs=G.logs.slice(-30);
+  batch.update(roomRef(),{
+    players:packPlayers(),deck:G.deck,discard:G.discard,tigerDeck:18,
+    cur:G.cur,round:G.round,logs:G.logs,
+    evt:{id:Date.now()+"-rw",type:"roundWin",wi:winnerIdx,next:true}
+  });
+  batch.commit().catch(function(e){ console.error(e); });
+}
+function onlineFinish(winnerIdx){
+  G.logs=(G.logs||[]).concat(pendingLogs); pendingLogs=[];
+  roomRef().update({
+    players:packPlayers(),status:"finished",winner:winnerIdx,logs:G.logs||[],
+    evt:{id:Date.now()+"-fw",type:"final",wi:winnerIdx}
+  }).catch(function(e){ console.error(e); });
+}
+function onRoomStateChanged(data){
+  var prevCur=(G&&G.players&&G.players.length)?G.cur:null;
+  G={players:data.players.map(function(p){ var q={}; for(var k in p) q[k]=p[k]; q.hand=[]; return q; }),
+     deck:data.deck||[],discard:data.discard||[],tigerDeck:data.tigerDeck,
+     cur:data.cur,round:data.round,logs:data.logs||[]};
+  if(myIndex>=0) G.players[myIndex].hand=myHand.slice();
+  renderLogs();
+  handleEvt(data.evt);
+  if(data.status==="finished"){
+    if(!finishedShown){ finishedShown=true; playVictorySound(); showFinalWin(G.players[data.winner]); }
+    return;
+  }
+  var cur=document.querySelector(".scr.on");
+  if(!cur||cur.id!=="gs") showScr("gs");
+  renderGame();
+  if(prevCur!==null&&prevCur!==G.cur&&G.cur===myIndex) toast("Your turn! 🐯","ok");
+}
+function handleEvt(evt){
+  if(!evt||evt.id===lastEvtId) return;
+  lastEvtId=evt.id;
+  if(evt.type==="tiger"){ animateTigerCard(); playTigerSound(); }
+  else if(evt.type==="roundWin"){
+    showRoundWin(G.players[evt.wi],true);
+    setTimeout(hideRoundWin,4200);
+  }
+}
+function renderLogs(){
+  if(!onlineMode||!G.logs) return;
+  var list=document.getElementById("log-list");
+  list.innerHTML="";
+  G.logs.forEach(function(e){
+    var d=document.createElement("div");
+    d.className="log-e "+(e.t||"");
+    d.textContent=e.m;
+    list.insertBefore(d,list.firstChild);
+  });
 }
 function leaveRoom(){
   if(roomUnsub){ roomUnsub(); roomUnsub=null; }
   if(handUnsub){ handUnsub(); handUnsub=null; }
-  onlineMode=false; roomCode=null; isHost=false; myIndex=-1;
+  onlineMode=false; roomCode=null; isHost=false; myIndex=-1; myHand=[];
+  lastEvtId=null; finishedShown=false;
+  clearSession();
   showScr("mode");
 }
-function onRoomStateChanged(data){
-  // Wired up in the next step — will drive the synced game screen.
+function notMyTurn(){
+  if(onlineMode&&G.cur!==myIndex){ toast("Not your turn!","err"); return true; }
+  return false;
 }
 initOnlineChefSelects();
 
 // ── SETUP ──
 function setPCount(n){
   pcnt=n;
-  document.querySelectorAll(".cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
+  document.querySelectorAll("#ss .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
   renderPList();
 }
 function renderPList(){
@@ -1054,6 +1206,12 @@ function resetGame(){
   stopMusic();
   var crown=document.getElementById("win-crown");
   if(crown) crown.style.display="none";
+  if(onlineMode){
+    // Back to the shared lobby (keeps everyone in the room, fresh scores)
+    var slim=G.players.map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef}; });
+    roomRef().update({status:"lobby",players:slim}).catch(function(e){ console.error(e); });
+    return; // everyone (including us) moves to lobby via the room snapshot
+  }
   showScr("ss");
 }
 function tigerTarget(){ var n=G.players.length; if(n===2) return 6; if(n<=4) return 5; return 4; }
@@ -1097,8 +1255,21 @@ function toggleLogoMenu(){ document.getElementById("logo-menu").classList.toggle
 function menuAction(a){
   document.getElementById("logo-menu").classList.remove("on");
   if(a==="rules") document.getElementById("rules-modal").classList.add("on");
-  else if(a==="resetRound") showConfirm("Reset Round?","Restart current round. Rounds won kept.",function(){ buildAndDealDeck(); G.cur=0; showHandoff(); });
-  else if(a==="resetGame") showConfirm("⚠️ Reset Entire Game?","All progress lost.",function(){ resetGame(); });
+  else if(a==="resetRound"){
+    if(onlineMode){
+      if(!isHost){ toast("Only the host can reset the round.","err"); return; }
+      showConfirm("Reset Round?","Restart current round for everyone. Rounds won kept.",function(){ onlineNewRound(0); });
+    } else {
+      showConfirm("Reset Round?","Restart current round. Rounds won kept.",function(){ buildAndDealDeck(); G.cur=0; showHandoff(); });
+    }
+  }
+  else if(a==="resetGame"){
+    if(onlineMode){
+      showConfirm("Leave Online Game?","You'll leave this room. Others can keep playing.",function(){ leaveRoom(); });
+    } else {
+      showConfirm("⚠️ Reset Entire Game?","All progress lost.",function(){ resetGame(); });
+    }
+  }
 }
 function showConfirm(title,msg,fn){
   document.getElementById("confirm-title").textContent=title;
@@ -1156,8 +1327,10 @@ function hideRoundWin(){ document.getElementById("round-win-overlay").classList.
 
 // ── RENDER ──
 function renderGame(){
-  var p=G.players[G.cur];
-  document.getElementById("hdr-nm").textContent=p.name+" ("+p.chef+")";
+  var cp=G.players[G.cur];
+  var p=(onlineMode&&myIndex>=0)?G.players[myIndex]:cp;
+  var myTurn=!onlineMode||G.cur===myIndex;
+  document.getElementById("hdr-nm").textContent=cp.name+" ("+cp.chef+")"+(onlineMode?(myTurn?" — YOU":""):"");
   document.getElementById("hdr-rnd").textContent="Round "+G.round;
   document.getElementById("tgt-val").textContent=tigerTarget()+" Tiger Cards needed";
   document.getElementById("draw-cnt").textContent=G.deck.length;
@@ -1168,15 +1341,18 @@ function renderGame(){
     de.style.display="none"; dc.textContent=G.discard.length; dc.style.display="flex";
   } else{ di.style.display="none"; de.style.display="block"; dc.style.display="none"; }
   // Opponents
+  var meIdx=(onlineMode&&myIndex>=0)?myIndex:G.cur;
   var oa=document.getElementById("opp-area"); oa.innerHTML="";
   G.players.forEach(function(op,i){
-    if(i===G.cur) return;
+    if(i===meIdx) return;
     var d=document.createElement("div"); d.className="opp-card";
+    if(onlineMode&&i===G.cur) d.style.cssText="outline:2px solid var(--or);border-radius:8px";
     var oi=document.createElement("img"); oi.src=IMG.chefs[op.chef]; oi.className="opp-img";
     if(op.isBlocked) oi.style.cssText="border:2px solid var(--re);border-radius:4px";
     var inf=document.createElement("div");
-    var nm=document.createElement("div"); nm.className="opp-nm"; nm.textContent=op.name;
-    var st=document.createElement("div"); st.className="opp-st"; st.textContent="🐯 "+op.tigerCards+" • 🏆 "+op.roundsWon+" • 🃏 "+op.hand.length;
+    var nm=document.createElement("div"); nm.className="opp-nm"; nm.textContent=op.name+(onlineMode&&i===G.cur?" ⏳":"");
+    var ohl=onlineMode?(op.handCount||0):op.hand.length;
+    var st=document.createElement("div"); st.className="opp-st"; st.textContent="🐯 "+op.tigerCards+" • 🏆 "+op.roundsWon+" • 🃏 "+ohl;
     inf.appendChild(nm); inf.appendChild(st);
     if(op.isBlocked){ var bd=document.createElement("div"); bd.className="opp-blk"; bd.textContent="🔒 "+(op.blockCard?CARDS[op.blockCard].name:"Blocked"); inf.appendChild(bd); }
     if(op.meatInFront){ var md=document.createElement("div"); md.className="opp-meat"; md.textContent=op.meatInFront.ready?"🥩 Meat ready":"🥩 Meat (next turn)"; inf.appendChild(md); }
@@ -1184,7 +1360,7 @@ function renderGame(){
   });
   // Player
   document.getElementById("ply-img").src=IMG.chefs[p.chef];
-  document.getElementById("ply-nm").textContent=p.name;
+  document.getElementById("ply-nm").textContent=p.name+(onlineMode?(myTurn?" — your turn!":" — waiting for "+cp.name+"…"):"");
   document.getElementById("ply-st").textContent="🐯 "+p.tigerCards+" Tiger Cards  🏆 "+p.roundsWon+" Rounds";
   var blkb=document.getElementById("ply-blk");
   if(p.isBlocked){ blkb.style.display="inline-block"; blkb.textContent="🔒 BLOCKED by "+(p.blockCard?CARDS[p.blockCard].name:""); } else blkb.style.display="none";
@@ -1198,7 +1374,8 @@ function renderGame(){
   renderHand(); updateBtns();
 }
 function renderHand(){
-  var p=G.players[G.cur]; var row=document.getElementById("hand-row"); row.innerHTML="";
+  var p=(onlineMode&&myIndex>=0)?G.players[myIndex]:G.players[G.cur];
+  var row=document.getElementById("hand-row"); row.innerHTML="";
   p.hand.forEach(function(ct,i){
     var c=document.createElement("div"); c.className="hc"+(selCard===i?" sel":"");
     var im=document.createElement("img"); im.src=IMG.cards[CARDS[ct].img]; im.alt=CARDS[ct].name; im.title=CARDS[ct].name;
@@ -1208,32 +1385,34 @@ function renderHand(){
   });
 }
 function updateBtns(){
-  var p=G.players[G.cur]; var d=p.done; var dr=d.draw;
+  var p=(onlineMode&&myIndex>=0)?G.players[myIndex]:G.players[G.cur];
+  var wait=onlineMode&&G.cur!==myIndex;
+  var d=p.done; var dr=d.draw;
   var hasFix=p.hand.some(function(c){ return CARDS[c].type==="fix"; });
   var hasBlk=p.hand.some(function(c){ return CARDS[c].type==="block"; });
   var hasVan=p.hand.some(function(c){ return c==="delivery_van"; });
   var hasMeat=p.hand.some(function(c){ return c==="beef_steak"; });
   var mr=p.meatInFront&&p.meatInFront.ready;
-  document.getElementById("b1").disabled=dr||d.fix||!p.isBlocked||!hasFix;
-  document.getElementById("b2").disabled=dr||!hasBlk;
-  document.getElementById("b3").disabled=dr||d.feed||!mr||p.isBlocked||G.tigerDeck<=0;
-  document.getElementById("b4").disabled=dr||d.quick||!hasVan||!hasMeat||p.isBlocked||G.tigerDeck<=0;
-  document.getElementById("b5").disabled=dr||d.slow||!hasMeat||p.isBlocked||!!p.meatInFront;
-  document.getElementById("b6").disabled=dr||d.disc||p.hand.length===0;
-  document.getElementById("b7").disabled=d.draw;
+  document.getElementById("b1").disabled=wait||dr||d.fix||!p.isBlocked||!hasFix;
+  document.getElementById("b2").disabled=wait||dr||!hasBlk;
+  document.getElementById("b3").disabled=wait||dr||d.feed||!mr||p.isBlocked||G.tigerDeck<=0;
+  document.getElementById("b4").disabled=wait||dr||d.quick||!hasVan||!hasMeat||p.isBlocked||G.tigerDeck<=0;
+  document.getElementById("b5").disabled=wait||dr||d.slow||!hasMeat||p.isBlocked||!!p.meatInFront;
+  document.getElementById("b6").disabled=wait||dr||d.disc||p.hand.length===0;
   // Ghost "Draw & End" when hand already has 5 cards (no draw needed)
   var handFull=p.hand.length>=5;
-  document.getElementById("b7").disabled=d.draw||handFull;
+  document.getElementById("b7").disabled=wait||d.draw||handFull;
   // Ghost "End Turn" when hand < 5 AND cards are available (must draw first)
   var avail=G.deck.length+G.discard.length;
-  var endOk=d.draw||(p.hand.length>=5)||avail===0;
+  var endOk=!wait&&(d.draw||(p.hand.length>=5)||avail===0);
   document.getElementById("bend").style.opacity=endOk?"1":"0.28";
   document.getElementById("bend").style.pointerEvents=endOk?"auto":"none";
-  document.getElementById("bend").title=endOk?"":"Draw first — you have fewer than 5 cards";
+  document.getElementById("bend").title=endOk?"":(wait?"Waiting for your turn":"Draw first — you have fewer than 5 cards");
 }
 
 // ── ACTIONS ──
 function doFix(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(!p.isBlocked){ toast("You are not blocked!","err"); return; }
   var fi=-1; p.hand.forEach(function(c,i){ if(CARDS[c].type==="fix"&&CARDS[c].fixes===p.blockCard) fi=i; });
@@ -1245,9 +1424,10 @@ function doFix(){
   var fc=p.hand.splice(fi,1)[0];
   G.discard.push(fc); G.discard.push(p.blockCard);
   p.isBlocked=false; p.blockCard=null; p.done.fix=true; selCard=null;
-  log(p.name+" used "+CARDS[fc].name+" — FIXED! 🔧","hi"); toast("Fixed! 🔧"); renderGame();
+  log(p.name+" used "+CARDS[fc].name+" — FIXED! 🔧","hi"); toast("Fixed! 🔧"); sync(); renderGame();
 }
 function openBlockModal(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   var bcs=[]; p.hand.forEach(function(c,i){ if(CARDS[c].type==="block") bcs.push({c:c,i:i}); });
   if(bcs.length===0){ toast("No Block cards in hand!","err"); return; }
@@ -1269,9 +1449,10 @@ function doBlock(ci,ti){
   var p=G.players[G.cur]; var tgt=G.players[ti];
   var card=p.hand.splice(ci,1)[0]; tgt.isBlocked=true; tgt.blockCard=card;
   selCard=null; closeModal("blk-modal");
-  log(p.name+" blocked "+tgt.name+" with "+CARDS[card].name+"! 🚫","hi"); toast(tgt.name+" is BLOCKED! 🚫"); renderGame();
+  log(p.name+" blocked "+tgt.name+" with "+CARDS[card].name+"! 🚫","hi"); toast(tgt.name+" is BLOCKED! 🚫"); sync(); renderGame();
 }
 function doFeed(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(!p.meatInFront){ toast("No Meat in front of your Chef!","err"); return; }
   if(!p.meatInFront.ready){ toast("Meat placed this turn — feed NEXT turn! 🥩","err"); return; }
@@ -1281,9 +1462,11 @@ function doFeed(){
   G.discard.push(p.meatInFront.card); p.meatInFront=null;
   p.tigerCards++; G.tigerDeck--; p.done.feed=true; selCard=null;
   log(p.name+" fed the Tiger and got a 🐯 Tiger Card!","hi"); toast("🐯 Tiger Card!","ok");
-  animateTigerCard(); playTigerSound(); checkWin(); renderGame();
+  if(onlineMode){ sync({type:"tiger",wi:G.cur}); } else { animateTigerCard(); playTigerSound(); }
+  checkWin(); renderGame();
 }
 function doQuick(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(p.isBlocked){ toast("BLOCKED! Fix first. 🔒","err"); return; }
   if(p.done.quick){ toast("Already did Quick Delivery!","err"); return; }
@@ -1295,9 +1478,11 @@ function doQuick(){
   [vi,mi].sort(function(a,b){return b-a;}).forEach(function(i){ G.discard.push(p.hand.splice(i,1)[0]); });
   p.tigerCards++; G.tigerDeck--; p.done.quick=true; selCard=null;
   log(p.name+" Quick Delivered — 🐯 Tiger Card!","hi"); toast("🚚 Tiger Card!","ok");
-  animateTigerCard(); playTigerSound(); checkWin(); renderGame();
+  if(onlineMode){ sync({type:"tiger",wi:G.cur}); } else { animateTigerCard(); playTigerSound(); }
+  checkWin(); renderGame();
 }
 function doSlow(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(p.isBlocked){ toast("BLOCKED! Fix first. 🔒","err"); return; }
   if(p.done.slow){ toast("Already did Slow Delivery!","err"); return; }
@@ -1306,9 +1491,10 @@ function doSlow(){
   if(mi===-1){ toast("No Meat Card in hand!","err"); return; }
   var card=p.hand.splice(mi,1)[0];
   p.meatInFront={card:card,ready:false}; p.done.slow=true; selCard=null;
-  log(p.name+" placed Meat. Feed Tiger NEXT turn. 🥩"); toast("🥩 Meat placed! Feed next turn."); renderGame();
+  log(p.name+" placed Meat. Feed Tiger NEXT turn. 🥩"); toast("🥩 Meat placed! Feed next turn."); sync(); renderGame();
 }
 function openDiscardModal(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(p.done.disc){ toast("Already discarded this turn!","err"); return; }
   selDiscards=[];
@@ -1334,9 +1520,10 @@ function confirmDiscard(){
   if(selDiscards.length===0){ toast("Select cards first"); return; }
   selDiscards.slice().sort(function(a,b){return b-a;}).forEach(function(i){ G.discard.push(p.hand.splice(i,1)[0]); });
   p.done.disc=true; selCard=null; log(p.name+" discarded "+selDiscards.length+" card"+(selDiscards.length>1?"s":"")+". 🗑️");
-  closeModal("disc-modal"); renderGame();
+  closeModal("disc-modal"); sync(); renderGame();
 }
 function doDraw(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur];
   if(p.done.draw){ toast("Already drawn!","err"); return; }
   drawToFive(p); p.done.draw=true;
@@ -1363,6 +1550,7 @@ function drawToFive(p){
   log(p.name+" drew "+drawn+" card"+(drawn>1?"s":"")+".");
 }
 function endTurn(){
+  if(notMyTurn()) return;
   var p=G.players[G.cur]; var av=G.deck.length+G.discard.length;
   if(!p.done.draw&&p.hand.length<5&&av>0){ toast("Draw first — fewer than 5 cards! 🃏","err"); return; }
   advanceTurn();
@@ -1371,7 +1559,16 @@ function advanceTurn(){
   var p=G.players[G.cur];
   if(p.isBlocked){ log(p.name+"'s Block expired. 🔓"); p.isBlocked=false; p.blockCard=null; }
   p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
-  selCard=null; G.cur=(G.cur+1)%G.players.length; showHandoff();
+  selCard=null; G.cur=(G.cur+1)%G.players.length;
+  if(onlineMode){
+    // No handoff screen online — the next player's meat becomes ready
+    // as their turn begins (equivalent to the reveal step in local play)
+    var np=G.players[G.cur];
+    if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
+    sync(); renderGame();
+  } else {
+    showHandoff();
+  }
 }
 
 // ── WIN CHECK ──
@@ -1381,6 +1578,11 @@ function checkWin(){
     p.roundsWon++;
     log("🏆 "+p.name+" WON ROUND "+G.round+"!","hi");
     var isGame=p.roundsWon>=3;
+    if(onlineMode){
+      if(isGame){ onlineFinish(G.cur); }
+      else { G.round++; onlineNewRound(G.cur); }
+      return; // all devices (including this one) react via the room snapshot
+    }
     showRoundWin(p,!isGame);
     setTimeout(function(){
       hideRoundWin();
@@ -1416,12 +1618,13 @@ function closeModal(id){ document.getElementById(id).classList.remove("on"); }
 function closeAllModals(){ ["blk-modal","disc-modal","rules-modal","confirm-modal"].forEach(function(id){ closeModal(id); }); }
 var toastT;
 function toast(msg,type){ var el=document.getElementById("toast"); el.textContent=msg; el.className="toast on "+(type||""); clearTimeout(toastT); toastT=setTimeout(function(){ el.className="toast"; },2800); }
-function log(msg,type){ var list=document.getElementById("log-list"); var d=document.createElement("div"); d.className="log-e "+(type||""); d.textContent=msg; list.insertBefore(d,list.firstChild); if(list.children.length>60) list.removeChild(list.lastChild); }
+function log(msg,type){ if(onlineMode) pendingLogs.push({m:msg,t:type||""}); var list=document.getElementById("log-list"); var d=document.createElement("div"); d.className="log-e "+(type||""); d.textContent=msg; list.insertBefore(d,list.firstChild); if(list.children.length>60) list.removeChild(list.lastChild); }
 
 // ── INIT ──
 setPCount(2);
-document.querySelector(".cnt-btn").classList.add("on");
+setRcCount(2);
 renderPList();
+tryRejoin();
 </script>
 </body>
 </html>
