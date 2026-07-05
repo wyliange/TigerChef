@@ -62,12 +62,14 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 /* Screens */
 .scr{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;overflow:hidden}
 .scr.on{display:flex}
+#mode,#ss,#rj,#rl{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:18px;padding-bottom:32px;min-height:0;flex:1 1 0}
 
 /* ── SETUP ── */
 .logo-img{width:min(340px,75vw);max-height:88px;object-fit:contain;filter:drop-shadow(0 3px 16px rgba(249,161,27,0.6))}
 .sbox{background:rgba(18,4,0,0.82);border:2px solid rgba(249,161,27,0.3);border-radius:18px;padding:18px 22px;width:min(400px,90vw);overflow:hidden;box-sizing:border-box}
 .sbox h2{font-family:'GameFont',sans-serif;font-size:1.3rem;color:var(--ye);margin-bottom:14px;text-align:center}
 .cnt-btns{display:flex;gap:9px;justify-content:center;margin-bottom:16px}
+.dur-btn{font-size:0.78rem}
 .cnt-btn{width:46px;height:46px;border-radius:50%;border:2px solid rgba(249,161,27,0.4);background:rgba(18,4,0,0.5);color:var(--cr);font-family:'GameFont',sans-serif;font-size:1.15rem;cursor:pointer;transition:all .2s}
 .cnt-btn.on{background:var(--or);border-color:var(--or);color:var(--br);transform:scale(1.1);box-shadow:0 4px 14px rgba(249,161,27,0.4)}
 .p-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
@@ -474,6 +476,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 .dcard img{width:100%;height:100%;object-fit:cover}
 .dcard:hover{border-color:var(--re);transform:translateY(-4px)}
 .dcard.sel{border-color:var(--re);transform:translateY(-5px);box-shadow:0 5px 12px rgba(192,57,43,0.38)}
+.back-arrow{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:rgba(255,245,230,0.55);font-family:'GameFont',sans-serif;font-size:0.8rem;cursor:pointer;padding:2px 4px;margin-bottom:6px;transition:color .15s}
+.back-arrow:hover,.back-arrow:active{color:var(--or)}
 .mcancel{padding:6px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.14);color:rgba(255,245,230,0.44);font-family:'GameFont',sans-serif;cursor:pointer;font-size:0.85rem;transition:all .18s}
 .mcancel:hover{border-color:rgba(255,255,255,0.28);color:var(--cr)}
 .rules-content{text-align:left;max-height:52vh;overflow-y:auto;margin-bottom:14px}
@@ -512,7 +516,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   <div class="sbox">
     <div id="mode-invite" style="display:none;text-align:center;font-size:0.8rem;color:var(--ye);font-family:'GameFont',sans-serif;margin-bottom:10px">🔗 You've been invited to a room! Enter your name, then tap Join.</div>
     <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:8px">Enter your Name &amp; Choose your Chef</p>
-    <div class="p-row"><label>You</label><input class="p-input" id="lp-name" placeholder="Enter your name" onfocus="this.select()"></div>
+    <div class="p-row" style="flex-direction:column;align-items:center;gap:5px"><label style="min-width:0;text-align:center">You</label><input class="p-input" id="lp-name" placeholder="Enter your name" onfocus="this.select()" style="max-width:200px;text-align:center"></div>
     <div class="chef-pick" id="lp-chef-pick"></div>
     <div id="mode-main-btns">
       <button class="btn-go" onclick="chooseCreate('local')" style="margin-top:14px;margin-bottom:10px">📱 Create a Local Game</button>
@@ -527,8 +531,14 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
         <button class="cnt-btn" onclick="setRcCount(4)">4</button>
         <button class="cnt-btn" onclick="setRcCount(5)">5</button>
       </div>
+      <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:14px 0 8px">Time allowed for each Turn</p>
+      <div class="cnt-btns" id="skip-dur-btns">
+        <button type="button" class="cnt-btn dur-btn" data-dur="0" onclick="setSkipDur(0)">Off</button>
+        <button type="button" class="cnt-btn dur-btn on" data-dur="45" onclick="setSkipDur(45)">45s</button>
+        <button type="button" class="cnt-btn dur-btn" data-dur="60" onclick="setSkipDur(60)">60s</button>
+      </div>
       <button class="btn-go" id="mode-go-btn" onclick="confirmCreate()" style="margin-top:14px;margin-bottom:10px">Continue</button>
-      <button class="mcancel" onclick="cancelCreate()" style="width:100%">Back</button>
+      <div style="text-align:center;margin-top:2px"><button type="button" class="back-arrow" onclick="cancelCreate()">← Back</button></div>
     </div>
   </div>
 </div>
@@ -540,7 +550,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
     <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Enter the 4-letter room code</p>
     <input class="p-input" id="rj-code" style="width:100%;text-align:center;font-size:1.3rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px" maxlength="4" placeholder="ABCD">
     <button class="btn-go" id="rj-join-btn" onclick="joinRoom()">🚪 Join Room</button>
-    <button class="mcancel" onclick="showScr('mode')" style="margin-top:8px;width:100%">Back</button>
+    <div style="text-align:center;margin-top:8px"><button type="button" class="back-arrow" onclick="showScr('mode')">← Back</button></div>
   </div>
 </div>
 
@@ -668,8 +678,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
           <div class="hand-row" id="hand-row"></div>
         </div>
         <div class="act-btns">
-          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab da" id="b2" onclick="openBlockModal()">🚫 Block</button>
+          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab gn" id="b3" onclick="doFeed()">🐯 Feed Tiger</button>
           <button class="ab gn" id="b4" onclick="doQuick()">🚚 Quick Deliver</button>
           <button class="ab pr" id="b5" onclick="doSlow()">🥩 Slow Deliver</button>
@@ -936,6 +946,7 @@ var pendingMode=null;    // 'local' | 'online' while picking player count
 var discBusy=false;      // double-tap guard for Confirm Discard
 var myIndex=-1;
 var rcCount=2;
+var skipDuration=45; // 0=off, else seconds of idle before skip vote can start
 var roomUnsub=null;
 var handUnsub=null;
 var myHand=[];
@@ -1057,6 +1068,12 @@ var inviteCode=null;
     if(m){ inviteCode=m[1].toUpperCase(); }
   }catch(e){}
 })();
+function setSkipDur(n){
+  skipDuration=n;
+  document.querySelectorAll("#skip-dur-btns .dur-btn").forEach(function(b){
+    b.classList.toggle("on", parseInt(b.getAttribute("data-dur"),10)===n);
+  });
+}
 function setRcCount(n){
   rcCount=n;
   document.querySelectorAll("#mode-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
@@ -1067,6 +1084,7 @@ function chooseCreate(mode){
   document.getElementById("mode-cnt-wrap").style.display="block";
   document.getElementById("mode-go-btn").textContent=(mode==="local"?"🐯 Start Local Setup":"🌐 Create Room");
   setRcCount(rcCount||2);
+  setSkipDur(skipDuration);
 }
 function cancelCreate(){
   pendingMode=null;
@@ -1102,7 +1120,7 @@ function createRoom(){
     var code=genRoomCode();
     var ref=db.collection("rooms").doc(code);
     ref.set({
-      hostUid:myUid, maxPlayers:rcCount, status:"lobby",
+      hostUid:myUid, maxPlayers:rcCount, skipDuration:skipDuration, status:"lobby",
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
       players:[{uid:myUid,name:me.name,chef:me.chef}]
     }).then(function(){
@@ -1185,6 +1203,7 @@ function listenToRoom(code){
     }
     roomTurnAt=data.turnAt||null;
     roomSkipVotes=data.skipVotes||null;
+      if(data.skipDuration!==undefined) SKIP_IDLE_MS=(data.skipDuration===0)?null:(data.skipDuration*1000);
     if(data.status==="lobby"){
       finishedShown=false;
       renderLobby(data);
@@ -1287,7 +1306,7 @@ function onlineNewRound(winnerIdx){
     players:packPlayers(),deck:G.deck,discard:G.discard,tigerDeck:18,
     cur:G.cur,round:G.round,logs:G.logs,
     turnAt:Date.now(),skipVotes:null,
-    evt:{id:Date.now()+"-rw",type:"roundWin",wi:winnerIdx,next:true}
+    evt:{id:Date.now()+"-rw",type:"roundWin",wi:winnerIdx,next:true,roundNum:(G.round-1)}
   });
   batch.commit().catch(function(e){ console.error(e); });
 }
@@ -1321,7 +1340,7 @@ function handleEvt(evt){
   lastEvtId=evt.id;
   if(evt.type==="tiger"){ animateTigerCard(); playTigerSound(); }
   else if(evt.type==="roundWin"){
-    showRoundWin(G.players[evt.wi],true);
+    showRoundWin(G.players[evt.wi],true,evt.roundNum);
     setTimeout(hideRoundWin,4200);
   }
 }
@@ -1387,12 +1406,12 @@ function leaveRoom(){
   cancelCreate();
   showScr("mode");
 }
-var SKIP_IDLE_MS=45000; // current player considered stuck after 45s
+var SKIP_IDLE_MS=45000; // null=off; else ms of idle before skip vote appears
 function updateSkipBanner(){
   var b=document.getElementById("skip-banner");
   if(!b) return;
   var show=onlineMode&&roomStatus==="playing"&&G&&G.players&&G.players.length&&
-           myIndex>=0&&G.cur!==myIndex&&roomTurnAt&&(Date.now()-roomTurnAt>=SKIP_IDLE_MS);
+           SKIP_IDLE_MS&&myIndex>=0&&G.cur!==myIndex&&roomTurnAt&&(Date.now()-roomTurnAt>=SKIP_IDLE_MS);
   if(!show){ b.style.display="none"; return; }
   var active=[]; G.players.forEach(function(p,i){ if(!p.left) active.push(i); });
   if(active.indexOf(G.cur)===-1){ b.style.display="none"; return; }
@@ -1622,11 +1641,12 @@ function animateTigerCard(){
 }
 
 // ── ROUND WIN ──
-function showRoundWin(winner,nextRound){
+function showRoundWin(winner,nextRound,roundNum){
   playVictorySound();
   var ov=document.getElementById("round-win-overlay");
-  document.getElementById("rw-title").textContent="🏆 "+winner.name+" wins Round "+G.round+"!";
-  document.getElementById("rw-sub").textContent=nextRound?"Starting Round "+(G.round+1)+"...":"ULTIMATE TIGERCHEF!";
+  var _rn=(roundNum!==undefined&&roundNum!==null)?roundNum:G.round;
+  document.getElementById("rw-title").textContent="🏆 "+winner.name+" wins Round "+_rn+"!";
+  document.getElementById("rw-sub").textContent=nextRound?"Starting Round "+(_rn+1)+"...":"ULTIMATE TIGERCHEF!";
   var sc=document.getElementById("rw-score"); sc.innerHTML="<h4>Rounds Won</h4>";
   G.players.forEach(function(p){
     var row=document.createElement("div"); row.className="rw-row"+(p===winner?" rw-winner":"");
@@ -1937,7 +1957,7 @@ function checkWin(){
       else { G.round++; onlineNewRound(G.cur); }
       return; // all devices (including this one) react via the room snapshot
     }
-    showRoundWin(p,!isGame);
+    showRoundWin(p,!isGame,G.round);
     setTimeout(function(){
       hideRoundWin();
       if(isGame){ showFinalWin(p); }
