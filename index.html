@@ -785,6 +785,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   <div class="tut-dim" id="tut-dim-b"></div>
   <div class="tut-dim" id="tut-dim-l"></div>
   <div class="tut-dim" id="tut-dim-r"></div>
+  <div class="tut-dim" id="tut-hole-block" style="background:transparent"></div>
   <div id="tut-ring"></div>
   <div id="tut-bubble">
     <div id="tut-step-no"></div>
@@ -2095,7 +2096,8 @@ function toast(msg,type){ var el=document.getElementById("toast"); el.textConten
 function log(msg,type){ if(onlineMode) pendingLogs.push({m:msg,t:type||""}); var list=document.getElementById("log-list"); var d=document.createElement("div"); d.className="log-e "+(type||""); d.textContent=msg; list.insertBefore(d,list.firstChild); if(list.children.length>60) list.removeChild(list.lastChild); }
 
 // ── TUTORIAL MODE ──
-var TUT={on:false,step:0,timer:null,botActive:false,botTurnCount:0,pendingBot:false};
+var TUT={on:false,step:0,timer:null,botActive:false,botTurnCount:0,pendingBot:false,lastClick:null};
+document.addEventListener("click",function(e){ if(TUT.on) TUT.lastClick=e.target; },true);
 var TUT_BOT="Chef Bot";
 
 function tutEl(id){ return document.getElementById(id); }
@@ -2123,7 +2125,12 @@ var TUT_STEPS=[
  {text:"First, enter your name in this box.",target:function(){return tutEl("lp-name");},next:true,
   canNext:function(){ var v=(tutEl("lp-name").value||"").trim(); if(!v){ toast("Type your name first! ✏️","err"); return false; } return true; }},
  {text:"Now choose your chef! For this tutorial, tap Theodore. 🍳",target:tutChefCard,
-  advance:function(){ return typeof lpChef!=="undefined"&&lpChef==="Theodore"; }},
+  onEnter:function(){ TUT.lastClick=null; },
+  advance:function(){
+    if(typeof lpChef==="undefined"||lpChef!=="Theodore") return false;
+    var c=tutChefCard();
+    return !!(c&&TUT.lastClick&&(c===TUT.lastClick||c.contains(TUT.lastClick)));
+  }},
  {text:"Games are played in online rooms with friends. Tap 'Join an Online Room'!",target:function(){return tutEl("btn-join-room");},
   advance:function(){ return tutEl("rj").classList.contains("on"); }},
  {text:"Every room has a 4-letter code shared by the host. Type this room's code: CHEF",target:function(){return tutEl("rj-code");},
@@ -2132,7 +2139,7 @@ var TUT_STEPS=[
   advance:function(){ return tutEl("rl").classList.contains("on")||tutOnGame(); }},
  {text:"Joining room CHEF… Chef Bot is here — the game is starting! 🐯",target:null,
   advance:function(){ return tutOnGame(); }},
- {text:"This is your hand: Broken Fridge, 2× Meat, Delivery Van and Duct Tape. Below are your action buttons. Let's use them one at a time!",target:function(){return tutEl("dash");},next:true},
+ {text:"This is your hand: Broken Fridge, 2× Meat, Delivery Van and Duct Tape. Below are your action buttons. Let's use them one at a time!",target:function(){return tutEl("dash");},next:true,passive:true},
  {text:"Broken Fridge is a BLOCK card — it stops an opponent from delivering or feeding until they fix it. Tap Block! 🚫",target:function(){return tutEl("b2");},
   advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
  {text:"Tap to block Chef Bot with your Broken Fridge!",target:function(){return tutBlkOption("Broken Fridge");},
@@ -2145,7 +2152,7 @@ var TUT_STEPS=[
   advance:function(){ return G&&G.cur===1; }},
  {text:"Chef Bot's turn! It's blocked by your Broken Fridge 🔒 — but blocked chefs can still BLOCK others… and Chef Bot just blocked YOU with a Broken Delivery Box! 🚫 (Its own block expires when its turn ends.)",target:null,next:true,
   onNext:function(){ tutBotFinish(); }},
- {text:"Back to you! You drew: Broken Delivery Box, Broken Fridge, Meat and Toolbox — plus your Duct Tape. You're BLOCKED 🔒, but blocking others is still allowed!",target:function(){return tutEl("dash");},next:true},
+ {text:"Back to you! You drew: Broken Delivery Box, Broken Fridge, Meat and Toolbox — plus your Duct Tape. You're BLOCKED 🔒, but blocking others is still allowed!",target:function(){return tutEl("dash");},next:true,passive:true},
  {text:"Return fire! Tap Block. 🚫",target:function(){return tutEl("b2");},
   advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
  {text:"Block Chef Bot with the Broken Delivery Box!",target:function(){return tutBlkOption("Broken Delivery Box");},
@@ -2192,6 +2199,7 @@ function tutShowStep(){
   var nb=tutEl("tut-next");
   nb.style.display=st.next?"block":"none";
   nb.textContent=st.nextLabel||"Next ➜";
+  if(st.onEnter) st.onEnter();
   var el=st.target?st.target():null;
   if(el&&el.scrollIntoView){ try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){ el.scrollIntoView(); } }
   tutPosition();
@@ -2222,6 +2230,7 @@ function tutPosition(){
   var W=window.innerWidth,H=window.innerHeight,pad=6;
   var dt=tutEl("tut-dim-t"),db=tutEl("tut-dim-b"),dl=tutEl("tut-dim-l"),dr=tutEl("tut-dim-r");
   var ring=tutEl("tut-ring"),bub=tutEl("tut-bubble");
+  var hb=tutEl("tut-hole-block");
   var el=st.target?st.target():null;
   if(el){
     var r=el.getBoundingClientRect();
@@ -2230,18 +2239,25 @@ function tutPosition(){
     tutSetDiv(db,0,y+h,W,H-(y+h));
     tutSetDiv(dl,0,y,x,h);
     tutSetDiv(dr,x+w,y,W-(x+w),h);
+    if(st.passive){ tutSetDiv(hb,x,y,w,h); } else { tutSetDiv(hb,0,0,0,0); }
     ring.style.display="block"; tutSetDiv(ring,x,y,w,h);
     var bw=Math.min(300,W*0.86);
     var bx=Math.min(Math.max(8,r.left+r.width/2-bw/2),W-bw-8);
-    bub.style.left=bx+"px";
-    if(r.top>H*0.52){ bub.style.top=""; bub.style.bottom=(H-y+10)+"px"; }
-    else{ bub.style.bottom=""; bub.style.top=(y+h+10)+"px"; }
+    bub.style.left=bx+"px"; bub.style.bottom="";
+    var bh=bub.offsetHeight||150;
+    var tBelow=y+h+10, tAbove=y-bh-10, t;
+    if(tBelow+bh<=H-8) t=tBelow;            // fits below the highlight
+    else if(tAbove>=8) t=tAbove;            // fits above it
+    else t=Math.max(8,Math.min(H-bh-8,y+14)); // last resort: overlap the top of the highlight
+    bub.style.top=t+"px";
   }else{
     tutSetDiv(dt,0,0,W,H); tutSetDiv(db,0,0,0,0); tutSetDiv(dl,0,0,0,0); tutSetDiv(dr,0,0,0,0);
+    tutSetDiv(hb,0,0,0,0);
     ring.style.display="none";
     var bw2=Math.min(300,W*0.86);
     bub.style.left=((W-bw2)/2)+"px"; bub.style.bottom="";
-    bub.style.top=Math.max(40,H*0.32)+"px";
+    var bh2=bub.offsetHeight||150;
+    bub.style.top=Math.max(8,Math.min(H*0.32,H-bh2-8))+"px";
   }
 }
 
