@@ -527,6 +527,12 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
         <button class="cnt-btn" onclick="setRcCount(4)">4</button>
         <button class="cnt-btn" onclick="setRcCount(5)">5</button>
       </div>
+      <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:14px 0 8px">Vote to Skip Turn</p>
+      <div class="cnt-btns" id="skip-dur-btns">
+        <button class="cnt-btn" onclick="setSkipDur(0)">Off</button>
+        <button class="cnt-btn active" onclick="setSkipDur(45)">45s</button>
+        <button class="cnt-btn" onclick="setSkipDur(60)">60s</button>
+      </div>
       <button class="btn-go" id="mode-go-btn" onclick="confirmCreate()" style="margin-top:14px;margin-bottom:10px">Continue</button>
       <button class="mcancel" onclick="cancelCreate()" style="width:100%">Back</button>
     </div>
@@ -668,8 +674,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
           <div class="hand-row" id="hand-row"></div>
         </div>
         <div class="act-btns">
-          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab da" id="b2" onclick="openBlockModal()">🚫 Block</button>
+          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab gn" id="b3" onclick="doFeed()">🐯 Feed Tiger</button>
           <button class="ab gn" id="b4" onclick="doQuick()">🚚 Quick Deliver</button>
           <button class="ab pr" id="b5" onclick="doSlow()">🥩 Slow Deliver</button>
@@ -936,6 +942,7 @@ var pendingMode=null;    // 'local' | 'online' while picking player count
 var discBusy=false;      // double-tap guard for Confirm Discard
 var myIndex=-1;
 var rcCount=2;
+var skipDuration=45; // 0=off, 45 or 60 seconds
 var roomUnsub=null;
 var handUnsub=null;
 var myHand=[];
@@ -1057,6 +1064,12 @@ var inviteCode=null;
     if(m){ inviteCode=m[1].toUpperCase(); }
   }catch(e){}
 })();
+function setSkipDur(n){
+  skipDuration=n;
+  document.querySelectorAll('#skip-dur-btns .cnt-btn').forEach(function(b){
+    b.classList.toggle('active', parseInt(b.textContent)===n||(n===0&&b.textContent==='Off'));
+  });
+}
 function setRcCount(n){
   rcCount=n;
   document.querySelectorAll("#mode-cnt-btns .cnt-btn").forEach(function(b,i){ b.classList.toggle("on",i===n-2); });
@@ -1102,7 +1115,7 @@ function createRoom(){
     var code=genRoomCode();
     var ref=db.collection("rooms").doc(code);
     ref.set({
-      hostUid:myUid, maxPlayers:rcCount, status:"lobby",
+      hostUid:myUid, maxPlayers:rcCount, skipDuration:skipDuration, status:"lobby",
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
       players:[{uid:myUid,name:me.name,chef:me.chef}]
     }).then(function(){
@@ -1185,6 +1198,7 @@ function listenToRoom(code){
     }
     roomTurnAt=data.turnAt||null;
     roomSkipVotes=data.skipVotes||null;
+      if(data.skipDuration!==undefined) SKIP_IDLE_MS=data.skipDuration===0?null:(data.skipDuration*1000);
     if(data.status==="lobby"){
       finishedShown=false;
       renderLobby(data);
@@ -1321,7 +1335,7 @@ function handleEvt(evt){
   lastEvtId=evt.id;
   if(evt.type==="tiger"){ animateTigerCard(); playTigerSound(); }
   else if(evt.type==="roundWin"){
-    showRoundWin(G.players[evt.wi],true);
+    showRoundWin(G.players[evt.wi],true,G.round);
     setTimeout(hideRoundWin,4200);
   }
 }
@@ -1387,12 +1401,12 @@ function leaveRoom(){
   cancelCreate();
   showScr("mode");
 }
-var SKIP_IDLE_MS=45000; // current player considered stuck after 45s
+var SKIP_IDLE_MS=45000; // null=off; 45000 or 60000ms
 function updateSkipBanner(){
   var b=document.getElementById("skip-banner");
   if(!b) return;
   var show=onlineMode&&roomStatus==="playing"&&G&&G.players&&G.players.length&&
-           myIndex>=0&&G.cur!==myIndex&&roomTurnAt&&(Date.now()-roomTurnAt>=SKIP_IDLE_MS);
+           SKIP_IDLE_MS&&myIndex>=0&&G.cur!==myIndex&&roomTurnAt&&(Date.now()-roomTurnAt>=SKIP_IDLE_MS);
   if(!show){ b.style.display="none"; return; }
   var active=[]; G.players.forEach(function(p,i){ if(!p.left) active.push(i); });
   if(active.indexOf(G.cur)===-1){ b.style.display="none"; return; }
@@ -1622,10 +1636,10 @@ function animateTigerCard(){
 }
 
 // ── ROUND WIN ──
-function showRoundWin(winner,nextRound){
+function showRoundWin(winner,nextRound,winningRound){
   playVictorySound();
   var ov=document.getElementById("round-win-overlay");
-  document.getElementById("rw-title").textContent="🏆 "+winner.name+" wins Round "+G.round+"!";
+  document.getElementById("rw-title").textContent="🏆 "+winner.name+" wins Round "+(winningRound||G.round)+"!";
   document.getElementById("rw-sub").textContent=nextRound?"Starting Round "+(G.round+1)+"...":"ULTIMATE TIGERCHEF!";
   var sc=document.getElementById("rw-score"); sc.innerHTML="<h4>Rounds Won</h4>";
   G.players.forEach(function(p){
@@ -1937,7 +1951,7 @@ function checkWin(){
       else { G.round++; onlineNewRound(G.cur); }
       return; // all devices (including this one) react via the room snapshot
     }
-    showRoundWin(p,!isGame);
+    showRoundWin(p,!isGame,G.round);
     setTimeout(function(){
       hideRoundWin();
       if(isGame){ showFinalWin(p); }
