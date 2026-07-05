@@ -62,13 +62,14 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 /* Screens */
 .scr{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;overflow:hidden}
 .scr.on{display:flex}
+#mode,#ss,#rj,#rl{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:18px;padding-bottom:24px}
 
 /* ── SETUP ── */
 .logo-img{width:min(340px,75vw);max-height:88px;object-fit:contain;filter:drop-shadow(0 3px 16px rgba(249,161,27,0.6))}
 .sbox{background:rgba(18,4,0,0.82);border:2px solid rgba(249,161,27,0.3);border-radius:18px;padding:18px 22px;width:min(400px,90vw);overflow:hidden;box-sizing:border-box}
 .sbox h2{font-family:'GameFont',sans-serif;font-size:1.3rem;color:var(--ye);margin-bottom:14px;text-align:center}
 .cnt-btns{display:flex;gap:9px;justify-content:center;margin-bottom:16px}
-.dur-btn{width:auto;min-width:56px;border-radius:22px;font-size:0.9rem;padding:0 14px}
+.dur-btn{font-size:0.78rem}
 .cnt-btn{width:46px;height:46px;border-radius:50%;border:2px solid rgba(249,161,27,0.4);background:rgba(18,4,0,0.5);color:var(--cr);font-family:'GameFont',sans-serif;font-size:1.15rem;cursor:pointer;transition:all .2s}
 .cnt-btn.on{background:var(--or);border-color:var(--or);color:var(--br);transform:scale(1.1);box-shadow:0 4px 14px rgba(249,161,27,0.4)}
 .p-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
@@ -523,7 +524,6 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
       <button class="btn-go" onclick="showJoin()">🔗 Join an Online Room</button>
     </div>
     <div id="mode-cnt-wrap" style="display:none">
-      <button type="button" class="back-arrow" onclick="cancelCreate()">← Back</button>
       <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players?</p>
       <div class="cnt-btns" id="mode-cnt-btns">
         <button class="cnt-btn" onclick="setRcCount(2)">2</button>
@@ -538,7 +538,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
         <button type="button" class="cnt-btn dur-btn" data-dur="60" onclick="setSkipDur(60)">60s</button>
       </div>
       <button class="btn-go" id="mode-go-btn" onclick="confirmCreate()" style="margin-top:14px;margin-bottom:10px">Continue</button>
-      <button class="mcancel" onclick="cancelCreate()" style="width:100%">Back</button>
+      <div style="text-align:center;margin-top:2px"><button type="button" class="back-arrow" onclick="cancelCreate()">← Back</button></div>
     </div>
   </div>
 </div>
@@ -546,12 +546,11 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 <!-- JOIN ROOM -->
 <div id="rj" class="scr">
   <div class="sbox">
-    <button type="button" class="back-arrow" onclick="showScr('mode')">← Back</button>
     <h2>🔗 Join Room</h2>
     <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin-bottom:10px">Enter the 4-letter room code</p>
     <input class="p-input" id="rj-code" style="width:100%;text-align:center;font-size:1.3rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px" maxlength="4" placeholder="ABCD">
     <button class="btn-go" id="rj-join-btn" onclick="joinRoom()">🚪 Join Room</button>
-    <button class="mcancel" onclick="showScr('mode')" style="margin-top:8px;width:100%">Back</button>
+    <div style="text-align:center;margin-top:8px"><button type="button" class="back-arrow" onclick="showScr('mode')">← Back</button></div>
   </div>
 </div>
 
@@ -679,8 +678,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
           <div class="hand-row" id="hand-row"></div>
         </div>
         <div class="act-btns">
-          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab da" id="b2" onclick="openBlockModal()">🚫 Block</button>
+          <button class="ab pr" id="b1" onclick="doFix()">🔧 Fix</button>
           <button class="ab gn" id="b3" onclick="doFeed()">🐯 Feed Tiger</button>
           <button class="ab gn" id="b4" onclick="doQuick()">🚚 Quick Deliver</button>
           <button class="ab pr" id="b5" onclick="doSlow()">🥩 Slow Deliver</button>
