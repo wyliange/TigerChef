@@ -62,8 +62,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 /* Screens */
 .scr{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;overflow:hidden}
 .scr.on{display:flex}
-#mode,#ss,#rj,#rl{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:14px;padding-bottom:20px;min-height:0;flex:1 1 0}
-#mode .sbox,#ss .sbox,#rj .sbox,#rl .sbox{flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#mode,#ss,#rj,#rl,#tut-done,#cta{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:14px;padding-bottom:20px;min-height:0;flex:1 1 0}
+#mode .sbox,#ss .sbox,#rj .sbox,#rl .sbox,#tut-done .sbox,#cta .sbox{flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #mode .logo-img,#ss .logo-img{flex-shrink:0}
 
 /* ── SETUP ── */
@@ -128,7 +128,6 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   .btn-go{padding:10px;font-size:1rem}
   .cnt-btn{width:42px;height:42px}
 }
-
 #skip-banner{display:none;margin:6px 10px;padding:8px 10px;border:1px solid rgba(249,161,27,0.4);border-radius:10px;background:rgba(22,6,0,0.85);text-align:center;font-family:'GameFont',sans-serif;font-size:0.8rem;color:var(--cr)}
 #pwa-banner{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(22,6,0,0.97);
   border-top:1px solid rgba(249,161,27,0.4);padding:14px 16px 18px;display:none;
@@ -490,6 +489,19 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 .dcard.sel{border-color:var(--re);transform:translateY(-5px);box-shadow:0 5px 12px rgba(192,57,43,0.38)}
 .back-arrow{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:rgba(255,245,230,0.55);font-family:'GameFont',sans-serif;font-size:0.8rem;cursor:pointer;padding:2px 4px;margin-bottom:6px;transition:color .15s}
 .back-arrow:hover,.back-arrow:active{color:var(--or)}
+/* ── TUTORIAL ── */
+.tut-dim{position:fixed;background:rgba(0,0,0,0.74);z-index:10500;pointer-events:auto}
+#tut-ring{position:fixed;border:3px solid var(--ye);border-radius:12px;z-index:10501;pointer-events:none;box-sizing:border-box;animation:tutPulse 1.3s ease-in-out infinite}
+@keyframes tutPulse{0%,100%{box-shadow:0 0 10px rgba(255,215,0,0.5)}50%{box-shadow:0 0 26px rgba(255,215,0,0.95)}}
+#tut-bubble{position:fixed;z-index:10502;background:rgba(22,6,0,0.97);border:2px solid var(--or);border-radius:14px;padding:12px 14px;width:min(300px,86vw);font-family:'GameFont',sans-serif;color:var(--cr);box-shadow:0 8px 30px rgba(0,0,0,0.65)}
+#tut-step-no{font-size:0.64rem;color:var(--or);margin-bottom:4px;letter-spacing:0.5px}
+#tut-text{font-size:0.84rem;line-height:1.45;margin-bottom:10px}
+#tut-next{width:100%;padding:9px;border-radius:9px;border:none;font-family:'GameFont',sans-serif;font-size:0.9rem;cursor:pointer;background:var(--or);color:var(--br)}
+#tut-next:hover,#tut-next:active{background:var(--ye)}
+#tut-exit{display:block;margin:7px auto 0;background:none;border:none;color:rgba(255,245,230,0.4);font-size:0.66rem;cursor:pointer;font-family:'GameFont',sans-serif}
+#tut-exit:hover{color:var(--or)}
+.btn-tut{width:100%;padding:10px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(249,161,27,0.35);color:var(--cr);font-family:'GameFont',sans-serif;font-size:0.95rem;cursor:pointer;transition:all .2s;margin-top:10px}
+.btn-tut:hover,.btn-tut:active{background:rgba(249,161,27,0.18);color:var(--ye)}
 .mcancel{padding:6px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.14);color:rgba(255,245,230,0.44);font-family:'GameFont',sans-serif;cursor:pointer;font-size:0.85rem;transition:all .18s}
 .mcancel:hover{border-color:rgba(255,255,255,0.28);color:var(--cr)}
 .rules-content{text-align:left;max-height:52vh;overflow-y:auto;margin-bottom:14px}
@@ -533,7 +545,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
     <div id="mode-main-btns">
       <button class="btn-go" onclick="chooseCreate('local')" style="margin-top:14px;margin-bottom:10px">📱 Create a Local Game</button>
       <button class="btn-go" onclick="chooseCreate('online')" style="margin-bottom:10px">🌐 Create an Online Room</button>
-      <button class="btn-go" onclick="showJoin()">🔗 Join an Online Room</button>
+      <button class="btn-go" id="btn-join-room" onclick="showJoin()">🔗 Join an Online Room</button>
+      <button class="btn-tut" onclick="startTutorial()">🎓 How to Play — Tutorial</button>
     </div>
     <div id="mode-cnt-wrap" style="display:none">
       <p style="text-align:center;font-size:0.78rem;color:rgba(255,245,230,0.45);font-family:'GameFont',sans-serif;margin:12px 0 8px">How many players?</p>
@@ -625,6 +638,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
       <button class="logo-menu-item" id="mi-reset-round" onclick="menuAction('resetRound')">🔄 Reset Round</button>
       <button class="logo-menu-item" id="mi-reset-game" onclick="menuAction('resetGame')" style="color:#E74C3C">⚠️ Reset Game</button>
       <button class="logo-menu-item" id="mi-exit" onclick="menuAction('exit')" style="color:#E74C3C;display:none">🚪 Exit Game</button>
+      <button class="logo-menu-item" id="mi-tut-exit" onclick="menuAction('tutExit')" style="color:var(--ye);display:none">🎓 Exit Tutorial — New Game</button>
     </div>
     <div class="ti">
       <div class="ti-lbl">Current Turn</div>
@@ -717,6 +731,40 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   <button class="btn-go" onclick="resetGame()" style="max-width:260px">🔄 Play Again</button>
 </div>
 
+<!-- TUTORIAL COMPLETE (after Round 1 vs Chef Bot) -->
+<div id="tut-done" class="scr">
+  <div class="sbox" style="text-align:center">
+    <div style="font-size:2.6rem;margin-bottom:4px">🏆</div>
+    <h2 id="tutd-title" style="font-family:'GameFont',sans-serif;color:var(--ye);margin-bottom:10px">🎉 You WON Round 1!</h2>
+    <p id="tutd-msg" style="font-size:0.85rem;line-height:1.5;color:rgba(255,245,230,0.8);font-family:'GameFont',sans-serif;margin-bottom:16px"></p>
+    <p style="font-size:0.78rem;color:rgba(255,245,230,0.5);font-family:'GameFont',sans-serif;margin-bottom:10px">Now play the real thing — with real friends!</p>
+    <button class="btn-go" onclick="tutPlayReal('local')" style="margin-bottom:10px">📱 Create a Local Game</button>
+    <button class="btn-go" onclick="tutPlayReal('online')" style="margin-bottom:10px">🌐 Create an Online Room</button>
+    <div style="text-align:center;margin-top:2px"><button type="button" class="back-arrow" onclick="tutExitToLanding()">← Main Menu</button></div>
+  </div>
+</div>
+
+<!-- PHYSICAL GAME CTA (after final win) -->
+<div id="cta" class="scr">
+  <div class="sbox" style="text-align:center">
+    <div style="font-size:2.2rem;margin-bottom:4px">🐯✈️</div>
+    <h2 style="font-family:'GameFont',sans-serif;color:var(--ye);margin-bottom:8px">Love this?</h2>
+    <p style="font-size:0.85rem;line-height:1.5;color:rgba(255,245,230,0.82);font-family:'GameFont',sans-serif;margin-bottom:12px">Tiger Chef was designed for travel! If you enjoyed the digital version, get a physical copy — for yourself, or as a gift. 🎁</p>
+    <button class="btn-go" onclick="window.open('https://www.tigerchefgame.com','_blank')" style="margin-bottom:6px">🛒 Get the Physical Game</button>
+    <div style="font-size:0.72rem;color:var(--or);font-family:'GameFont',sans-serif;margin-bottom:14px">www.tigerchefgame.com</div>
+    <div class="logo-menu-sep" style="margin:10px 0"></div>
+    <p style="font-size:0.8rem;color:rgba(255,245,230,0.7);font-family:'GameFont',sans-serif;margin-bottom:8px">🔔 Get notified when the physical game launches:</p>
+    <div id="cta-sub-row" style="display:flex;gap:6px;margin-bottom:6px">
+      <input class="p-input" id="cta-email" type="email" placeholder="your@email.com" style="flex:1;max-width:none">
+      <button class="ab pr" id="cta-sub-btn" onclick="ctaSubscribe()" style="padding:8px 14px;border-radius:9px;border:none;font-family:'GameFont',sans-serif;cursor:pointer;background:var(--or);color:var(--br)">Notify Me</button>
+    </div>
+    <div id="cta-sub-done" style="display:none;color:#69D651;font-size:0.8rem;font-family:'GameFont',sans-serif;margin-bottom:6px">✔ You're on the list!</div>
+    <button class="btn-go" onclick="ctaPlayAgain()" style="margin-top:12px;margin-bottom:8px">🔄 Play Again</button>
+    <button class="mcancel" onclick="ctaMenu()" style="width:100%;margin-bottom:12px">🏠 Main Menu</button>
+    <button id="cta-off" onclick="ctaDismissForever()" style="background:none;border:none;color:rgba(255,245,230,0.4);font-size:0.68rem;font-family:'GameFont',sans-serif;cursor:pointer;line-height:1.4;padding:4px">Already got your copy of Tiger Chef? Tap here to turn off this message — no one wants to be sold to every time! 😊</button>
+  </div>
+</div>
+
 </div><!-- #app -->
 
 <!-- Tiger anim -->
@@ -729,6 +777,31 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   <div class="rw-title" id="rw-title"></div>
   <div class="rw-sub" id="rw-sub"></div>
   <div class="rw-score" id="rw-score"></div>
+</div>
+
+<!-- TUTORIAL OVERLAY -->
+<div id="tut-wrap" style="display:none">
+  <div class="tut-dim" id="tut-dim-t"></div>
+  <div class="tut-dim" id="tut-dim-b"></div>
+  <div class="tut-dim" id="tut-dim-l"></div>
+  <div class="tut-dim" id="tut-dim-r"></div>
+  <div id="tut-ring"></div>
+  <div id="tut-bubble">
+    <div id="tut-step-no"></div>
+    <div id="tut-text"></div>
+    <button id="tut-next" onclick="tutNext()">Next ➜</button>
+    <button id="tut-exit" onclick="tutExit()">✕ Exit tutorial</button>
+  </div>
+</div>
+
+<!-- TUTORIAL FIRST-VISIT OFFER -->
+<div class="modal-ov" id="tut-offer">
+  <div class="modal">
+    <h3>🎓 First time playing?</h3>
+    <p>Take a quick interactive tutorial and learn Tiger Chef step by step — it only takes 2 minutes!</p>
+    <button class="ab pr" onclick="tutOfferStart()" style="width:100%;margin-bottom:8px;padding:11px;font-size:0.95rem">🐯 Start Tutorial</button>
+    <button class="mcancel" onclick="tutOfferSkip()" style="width:100%">Maybe later</button>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -1142,6 +1215,7 @@ function createRoom(){
   });
 }
 function joinRoom(){
+  if(TUT.on){ tutFakeJoin(); return; }
   waitForAuth(function(){
     var code=(document.getElementById("rj-code").value||"").trim().toUpperCase();
     var me=landingName("Player");
@@ -1545,6 +1619,7 @@ function buildAndDealDeck(){
   G.deck=deck; G.discard=[]; G.tigerDeck=18; selCard=null;
 }
 function resetGame(){
+  if(typeof ctaTimer!=="undefined"&&ctaTimer){ clearTimeout(ctaTimer); ctaTimer=null; }
   stopMusic();
   var crown=document.getElementById("win-crown");
   if(crown) crown.style.display="none";
@@ -1560,10 +1635,11 @@ function tigerTarget(){ var n=G.players.filter(function(p){ return !p.left; }).l
 
 // ── SCREENS ──
 function showScr(id){
-  ["mode","ss","rj","rl","hs","gs","ws"].forEach(function(s){ document.getElementById(s).classList.remove("on"); });
+  ["mode","ss","rj","rl","hs","gs","ws","tut-done","cta"].forEach(function(s){ document.getElementById(s).classList.remove("on"); });
   document.getElementById(id).classList.add("on");
 }
 function showHandoff(){
+  if(TUT.botActive){ tutTurnRouter(); return; }
   closeAllModals();
   var p=G.players[G.cur];
   document.getElementById("hoff-title").textContent=p.name+"'s Turn!";
@@ -1610,7 +1686,11 @@ function updateMenuItems(){
 function menuAction(a){
   document.getElementById("logo-menu").classList.remove("on");
   if(a==="rules") document.getElementById("rules-modal").classList.add("on");
+  else if(a==="tutExit"){
+    showConfirm("🎓 Exit Tutorial?","Leave the tutorial and return to the main menu to start a real game.",function(){ tutExitToLanding(); });
+  }
   else if(a==="resetRound"){
+    if(TUT.botActive){ menuAction("tutExit"); return; }
     if(onlineMode){
       if(!isHost){ toast("Only the host can reset the round.","err"); return; }
       showConfirm("Reset Round?","Restart current round for everyone. Rounds won kept.",function(){ onlineNewRound(0); });
@@ -1619,6 +1699,7 @@ function menuAction(a){
     }
   }
   else if(a==="resetGame"){
+    if(TUT.botActive){ menuAction("tutExit"); return; }
     if(onlineMode){
       if(!isHost){ toast("Only the game master can reset the game.","err"); return; }
       showConfirm("⚠️ Reset Entire Game?","Everyone returns to the lobby. Scores reset.",function(){ resetGame(); });
@@ -1973,6 +2054,7 @@ function checkWin(){
     setTimeout(function(){
       hideRoundWin();
       if(isGame){ showFinalWin(p); }
+      else if(TUT.botActive){ tutRound1End(p); }
       else{ var wi=G.cur; G.round++; buildAndDealDeck(); G.cur=wi; showHandoff(); }
     },4200);
   }
@@ -1993,6 +2075,12 @@ function showFinalWin(winner){
     row.appendChild(nm); row.appendChild(sv); sb.appendChild(row);
   });
   showScr("ws");
+  try{
+    if(!TUT.botActive&&!localStorage.getItem("tcOwnsCopy")){
+      if(ctaTimer) clearTimeout(ctaTimer);
+      ctaTimer=setTimeout(showCTA,4500);
+    }
+  }catch(e){}
 }
 
 // ── HELPERS ──
@@ -2006,10 +2094,375 @@ var toastT;
 function toast(msg,type){ var el=document.getElementById("toast"); el.textContent=msg; el.className="toast on "+(type||""); clearTimeout(toastT); toastT=setTimeout(function(){ el.className="toast"; },2800); }
 function log(msg,type){ if(onlineMode) pendingLogs.push({m:msg,t:type||""}); var list=document.getElementById("log-list"); var d=document.createElement("div"); d.className="log-e "+(type||""); d.textContent=msg; list.insertBefore(d,list.firstChild); if(list.children.length>60) list.removeChild(list.lastChild); }
 
+// ── TUTORIAL MODE ──
+var TUT={on:false,step:0,timer:null,botActive:false,botTurnCount:0,pendingBot:false};
+var TUT_BOT="Chef Bot";
+
+function tutEl(id){ return document.getElementById(id); }
+function tutChefCard(){
+  var ops=document.querySelectorAll("#lp-chef-pick .chef-opt");
+  for(var i=0;i<ops.length;i++){ var s=ops[i].querySelector("span"); if(s&&s.textContent==="Theodore") return ops[i]; }
+  return null;
+}
+function tutBlkOption(txt){
+  var btns=document.querySelectorAll("#blk-list .tgt-btn");
+  for(var i=0;i<btns.length;i++){ if(btns[i].textContent.indexOf(txt)>-1) return btns[i]; }
+  return null;
+}
+function tutDiscCard(name){
+  var cards=document.querySelectorAll("#disc-cards .dcard img");
+  for(var i=0;i<cards.length;i++){ if(cards[i].alt===name) return cards[i].parentNode; }
+  return null;
+}
+function tutHuman(){ return (G&&G.players&&G.players[0])?G.players[0]:null; }
+function tutBot(){ return (G&&G.players&&G.players[1])?G.players[1]:null; }
+function tutOnGame(){ var g=tutEl("gs"); return g&&g.classList.contains("on")&&G&&G.players&&G.players.length===2; }
+
+var TUT_STEPS=[
+ {text:"Welcome to Tiger Chef! 🐯 I'll walk you through your first game, step by step. Only the glowing element can be tapped at each step. Tap Next to begin!",target:null,next:true},
+ {text:"First, enter your name in this box.",target:function(){return tutEl("lp-name");},next:true,
+  canNext:function(){ var v=(tutEl("lp-name").value||"").trim(); if(!v){ toast("Type your name first! ✏️","err"); return false; } return true; }},
+ {text:"Now choose your chef! For this tutorial, tap Theodore. 🍳",target:tutChefCard,
+  advance:function(){ return typeof lpChef!=="undefined"&&lpChef==="Theodore"; }},
+ {text:"Games are played in online rooms with friends. Tap 'Join an Online Room'!",target:function(){return tutEl("btn-join-room");},
+  advance:function(){ return tutEl("rj").classList.contains("on"); }},
+ {text:"Every room has a 4-letter code shared by the host. Type this room's code: CHEF",target:function(){return tutEl("rj-code");},
+  advance:function(){ return (tutEl("rj-code").value||"").trim().toUpperCase()==="CHEF"; }},
+ {text:"Great! Now tap Join Room. 🚪",target:function(){return tutEl("rj-join-btn");},
+  advance:function(){ return tutEl("rl").classList.contains("on")||tutOnGame(); }},
+ {text:"Joining room CHEF… Chef Bot is here — the game is starting! 🐯",target:null,
+  advance:function(){ return tutOnGame(); }},
+ {text:"This is your hand: Broken Fridge, 2× Meat, Delivery Van and Duct Tape. Below are your action buttons. Let's use them one at a time!",target:function(){return tutEl("dash");},next:true},
+ {text:"Broken Fridge is a BLOCK card — it stops an opponent from delivering or feeding until they fix it. Tap Block! 🚫",target:function(){return tutEl("b2");},
+  advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
+ {text:"Tap to block Chef Bot with your Broken Fridge!",target:function(){return tutBlkOption("Broken Fridge");},
+  advance:function(){ var b=tutBot(); return b&&b.isBlocked; }},
+ {text:"Quick Delivery: spend a Meat + Delivery Van together for an instant 🐯 Tiger Card! Tap Quick Deliver! 🚚",target:function(){return tutEl("b4");},
+  advance:function(){ var h=tutHuman(); return h&&h.done.quick; }},
+ {text:"Slow Delivery: place 1 Meat in front of your chef now — you can feed it to the Tiger NEXT turn. Tap Slow Deliver! 🥩",target:function(){return tutEl("b5");},
+  advance:function(){ var h=tutHuman(); return h&&h.done.slow; }},
+ {text:"To finish your turn, draw back up to 5 cards. Tap Draw & End! 🃏",target:function(){return tutEl("b7");},
+  advance:function(){ return G&&G.cur===1; }},
+ {text:"Chef Bot's turn! It's blocked by your Broken Fridge 🔒 — but blocked chefs can still BLOCK others… and Chef Bot just blocked YOU with a Broken Delivery Box! 🚫 (Its own block expires when its turn ends.)",target:null,next:true,
+  onNext:function(){ tutBotFinish(); }},
+ {text:"Back to you! You drew: Broken Delivery Box, Broken Fridge, Meat and Toolbox — plus your Duct Tape. You're BLOCKED 🔒, but blocking others is still allowed!",target:function(){return tutEl("dash");},next:true},
+ {text:"Return fire! Tap Block. 🚫",target:function(){return tutEl("b2");},
+  advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
+ {text:"Block Chef Bot with the Broken Delivery Box!",target:function(){return tutBlkOption("Broken Delivery Box");},
+  advance:function(){ var b=tutBot(); return b&&b.isBlocked; }},
+ {text:"Now fix yourself! Your Duct Tape repairs a Broken Delivery Box. Tap Fix! 🔧",target:function(){return tutEl("b1");},
+  advance:function(){ var h=tutHuman(); return h&&!h.isBlocked; }},
+ {text:"Remember the Meat you placed last turn? It's ready! Tap Feed Tiger for another 🐯 Tiger Card!",target:function(){return tutEl("b3");},
+  advance:function(){ var h=tutHuman(); return h&&h.done.feed; }},
+ {text:"Keep the engine going — place another Meat for next turn. Tap Slow Deliver! 🥩",target:function(){return tutEl("b5");},
+  advance:function(){ var h=tutHuman(); return h&&h.done.slow; }},
+ {text:"You can discard up to 2 unwanted cards per turn. The Toolbox fixes Broken Fridges — but you're not holding one, so let's swap it. Tap Discard! 🗑️",target:function(){return tutEl("b6");},
+  advance:function(){ return tutEl("disc-modal").classList.contains("on"); }},
+ {text:"Select the Toolbox.",target:function(){return tutDiscCard("Toolbox");},
+  advance:function(){ return selDiscards.length>0; }},
+ {text:"Tap Confirm Discard.",target:function(){return document.querySelector("#disc-modal .ab.pr");},
+  advance:function(){ var h=tutHuman(); return !tutEl("disc-modal").classList.contains("on")&&h&&(h.discUsed||0)>0; }},
+ {text:"Finish your turn — tap Draw & End! 🃏",target:function(){return tutEl("b7");},
+  advance:function(){ return G&&G.cur===1; }},
+ {text:"🎉 Tutorial complete! You know it all: Block 🚫, Fix 🔧, Quick & Slow Delivery 🚚🥩, Feed the Tiger 🐯 and Discard 🗑️. First chef to 6 Tiger Cards wins the round — win 3 rounds to become the ULTIMATE TIGERCHEF! Keep playing against Chef Bot for practice.",target:null,next:true,nextLabel:"Keep Playing ➜",
+  onNext:function(){ tutFinish(); }}
+];
+
+function startTutorial(){
+  try{ localStorage.setItem("tcTutSeen","1"); }catch(e){}
+  onlineMode=false;
+  TUT.on=true; TUT.step=0; TUT.botActive=false; TUT.botTurnCount=0; TUT.pendingBot=false;
+  closeAllModals();
+  showScr("mode");
+  tutEl("tut-wrap").style.display="block";
+  if(TUT.timer) clearInterval(TUT.timer);
+  TUT.timer=setInterval(tutTick,250);
+  tutShowStep();
+}
+function tutExit(){
+  if(window.confirm("Exit the tutorial? The page will reload.")){ location.reload(); }
+}
+function tutOfferStart(){ try{localStorage.setItem("tcTutSeen","1");}catch(e){} closeModal("tut-offer"); startTutorial(); }
+function tutOfferSkip(){ try{localStorage.setItem("tcTutSeen","1");}catch(e){} closeModal("tut-offer"); }
+
+function tutShowStep(){
+  var st=TUT_STEPS[TUT.step]; if(!st) return;
+  tutEl("tut-step-no").textContent="TUTORIAL — STEP "+(TUT.step+1)+" OF "+TUT_STEPS.length;
+  tutEl("tut-text").textContent=st.text;
+  var nb=tutEl("tut-next");
+  nb.style.display=st.next?"block":"none";
+  nb.textContent=st.nextLabel||"Next ➜";
+  var el=st.target?st.target():null;
+  if(el&&el.scrollIntoView){ try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){ el.scrollIntoView(); } }
+  tutPosition();
+}
+function tutNext(){
+  var st=TUT_STEPS[TUT.step]; if(!st||!st.next) return;
+  if(st.canNext&&!st.canNext()) return;
+  if(st.onNext) st.onNext();
+  tutAdvance();
+}
+function tutAdvance(){
+  TUT.step++;
+  if(TUT.step>=TUT_STEPS.length){ tutFinish(); return; }
+  tutShowStep();
+}
+function tutTick(){
+  if(!TUT.on) return;
+  tutPosition();
+  var st=TUT_STEPS[TUT.step];
+  if(st&&st.advance&&st.advance()) tutAdvance();
+}
+function tutSetDiv(el,x,y,w,h){
+  el.style.left=x+"px"; el.style.top=y+"px";
+  el.style.width=Math.max(0,w)+"px"; el.style.height=Math.max(0,h)+"px";
+}
+function tutPosition(){
+  var st=TUT_STEPS[TUT.step]; if(!st) return;
+  var W=window.innerWidth,H=window.innerHeight,pad=6;
+  var dt=tutEl("tut-dim-t"),db=tutEl("tut-dim-b"),dl=tutEl("tut-dim-l"),dr=tutEl("tut-dim-r");
+  var ring=tutEl("tut-ring"),bub=tutEl("tut-bubble");
+  var el=st.target?st.target():null;
+  if(el){
+    var r=el.getBoundingClientRect();
+    var x=r.left-pad,y=r.top-pad,w=r.width+pad*2,h=r.height+pad*2;
+    tutSetDiv(dt,0,0,W,y);
+    tutSetDiv(db,0,y+h,W,H-(y+h));
+    tutSetDiv(dl,0,y,x,h);
+    tutSetDiv(dr,x+w,y,W-(x+w),h);
+    ring.style.display="block"; tutSetDiv(ring,x,y,w,h);
+    var bw=Math.min(300,W*0.86);
+    var bx=Math.min(Math.max(8,r.left+r.width/2-bw/2),W-bw-8);
+    bub.style.left=bx+"px";
+    if(r.top>H*0.52){ bub.style.top=""; bub.style.bottom=(H-y+10)+"px"; }
+    else{ bub.style.bottom=""; bub.style.top=(y+h+10)+"px"; }
+  }else{
+    tutSetDiv(dt,0,0,W,H); tutSetDiv(db,0,0,0,0); tutSetDiv(dl,0,0,0,0); tutSetDiv(dr,0,0,0,0);
+    ring.style.display="none";
+    var bw2=Math.min(300,W*0.86);
+    bub.style.left=((W-bw2)/2)+"px"; bub.style.bottom="";
+    bub.style.top=Math.max(40,H*0.32)+"px";
+  }
+}
+
+// ── TUTORIAL: fake join + scripted game ──
+function tutFakeJoin(){
+  var code=(tutEl("rj-code").value||"").trim().toUpperCase();
+  if(code!=="CHEF"){ toast("Type the code CHEF to continue!","err"); return; }
+  tutEl("rl-code").textContent="CHEF";
+  var me=landingName("You");
+  tutEl("rl-players").innerHTML=
+    '<div style="text-align:center;font-family:\'GameFont\',sans-serif;font-size:0.9rem;padding:4px">👨‍🍳 '+me.name+' (You)</div>'+
+    '<div style="text-align:center;font-family:\'GameFont\',sans-serif;font-size:0.9rem;padding:4px;color:var(--or)">🤖 '+TUT_BOT+'</div>';
+  tutEl("rl-host-msg").textContent="Tutorial room — starting automatically…";
+  tutEl("rl-start-btn").style.display="none";
+  showScr("rl");
+  setTimeout(function(){ toast(TUT_BOT+" joined! 🤖","ok"); },700);
+  setTimeout(tutStartGame,2200);
+}
+function tutStartGame(){
+  var me=landingName("Player 1");
+  var human=makePlayer(me.name,(typeof lpChef!=="undefined"&&CHEFS.indexOf(lpChef)>-1)?lpChef:"Theodore");
+  var bot=makePlayer(TUT_BOT,"Joanne");
+  human.hand=["broken_fridge","beef_steak","beef_steak","delivery_van","duct_tape"];
+  bot.hand=["delivery_box","beef_steak","delivery_van","toolbox","duct_tape"];
+  // Remove dealt + reserved cards from the pool, shuffle the rest, then place
+  // the 4 reserved draw cards at the END of the deck (drawToFive pops from the end).
+  var reserved=["toolbox","beef_steak","broken_fridge","delivery_box"]; // pop order: delivery_box, broken_fridge, beef_steak, toolbox
+  var pool=DECK_T.slice();
+  human.hand.concat(bot.hand).concat(reserved).forEach(function(c){
+    var i=pool.indexOf(c); if(i>-1) pool.splice(i,1);
+  });
+  var deck=shuffle(pool).concat(reserved);
+  G={players:[human,bot],deck:deck,discard:[],tigerDeck:18,cur:0,round:1};
+  selCard=null;
+  TUT.botActive=true; TUT.botTurnCount=0; TUT.pendingBot=false;
+  var mt=document.getElementById("mi-tut-exit"); if(mt) mt.style.display="block";
+  dashCollapsed=false; updateDashToggle();
+  try{ startMusic(); }catch(e){}
+  renderGame(); showScr("gs");
+}
+
+// ── TUTORIAL: turn routing + bot ──
+function tutTurnRouter(){
+  closeAllModals();
+  if(!G||!G.players){ return; }
+  if(G.cur===0){
+    revealHand();
+    return;
+  }
+  // Bot's turn
+  if(TUT.on){
+    if(TUT.botTurnCount===0){ TUT.botTurnCount=1; tutBotScripted(); }
+    else { TUT.pendingBot=true; renderGame(); }
+  } else {
+    renderGame();
+    setTimeout(tutBotFreeTurn,900);
+  }
+}
+function tutBotScripted(){
+  // Bot (blocked) blocks the human with its Broken Delivery Box, then waits for the Next tap (step bubble).
+  var b=tutBot(),h=tutHuman();
+  var i=b.hand.indexOf("delivery_box");
+  if(i>-1){ h.isBlocked=true; h.blockCard=b.hand.splice(i,1)[0]; }
+  log(TUT_BOT+" blocked "+h.name+" with Broken Delivery Box! 🚫","hi");
+  renderGame();
+}
+function tutBotFinish(){
+  var b=tutBot();
+  drawToFive(b);
+  log(TUT_BOT+"'s turn ended. 🃏");
+  advanceTurn(); // clears bot's expired block, hands turn to the player (routed to revealHand)
+}
+function tutBotFreeTurn(){
+  if(!G||!G.players||G.cur!==1) return;
+  var b=tutBot(),h=tutHuman();
+  // 1. Fix if blocked and holding the matching fix card
+  if(b.isBlocked){
+    var fi=-1;
+    b.hand.forEach(function(c,i){ if(CARDS[c].type==="fix"&&CARDS[c].fixes===b.blockCard) fi=i; });
+    if(fi>-1){
+      G.discard.push(b.hand.splice(fi,1)[0]); G.discard.push(b.blockCard);
+      b.isBlocked=false; b.blockCard=null;
+      log(TUT_BOT+" fixed itself! 🔧");
+    }
+  }
+  if(!b.isBlocked){
+    // 2. Feed a ready meat
+    if(b.meatInFront&&b.meatInFront.ready&&G.tigerDeck>0){
+      G.discard.push(b.meatInFront.card); b.meatInFront=null;
+      b.tigerCards++; G.tigerDeck--;
+      log(TUT_BOT+" fed the Tiger! 🐯","hi");
+    }
+    // 3. Quick deliver if possible
+    var vi=-1,mi=-1;
+    b.hand.forEach(function(c,i){ if(c==="delivery_van"&&vi===-1) vi=i; });
+    b.hand.forEach(function(c,i){ if(c==="beef_steak"&&i!==vi&&mi===-1) mi=i; });
+    if(vi>-1&&mi>-1&&G.tigerDeck>0){
+      [vi,mi].sort(function(a,x){return x-a;}).forEach(function(i){ G.discard.push(b.hand.splice(i,1)[0]); });
+      b.tigerCards++; G.tigerDeck--;
+      log(TUT_BOT+" Quick Delivered — 🐯!","hi");
+    }
+    // 4. Slow deliver
+    if(!b.meatInFront){
+      var m2=b.hand.indexOf("beef_steak");
+      if(m2>-1){ b.meatInFront={card:b.hand.splice(m2,1)[0],ready:false}; log(TUT_BOT+" placed Meat. 🥩"); }
+    }
+  }
+  // 5. Block the human if possible
+  if(!h.isBlocked){
+    var bi=-1;
+    b.hand.forEach(function(c,i){ if(CARDS[c].type==="block"&&bi===-1) bi=i; });
+    if(bi>-1){
+      h.isBlocked=true; h.blockCard=b.hand.splice(bi,1)[0];
+      log(TUT_BOT+" blocked "+h.name+" with "+CARDS[h.blockCard].name+"! 🚫","hi");
+      toast("You've been BLOCKED! 🔒","err");
+    }
+  }
+  renderGame();
+  // 6. Win check (bot is the current player)
+  if(b.tigerCards>=tigerTarget()){ checkWin(); return; }
+  drawToFive(b);
+  log(TUT_BOT+"'s turn ended. 🃏");
+  renderGame();
+  setTimeout(function(){ advanceTurn(); },900);
+}
+function tutFinish(){
+  TUT.on=false;
+  tutEl("tut-wrap").style.display="none";
+  if(TUT.timer){ clearInterval(TUT.timer); TUT.timer=null; }
+  toast("Free play vs "+TUT_BOT+"! 🤖","ok");
+  if(TUT.pendingBot){ TUT.pendingBot=false; setTimeout(tutBotFreeTurn,700); }
+}
+function tutCleanState(){
+  TUT.on=false; TUT.botActive=false; TUT.pendingBot=false; TUT.botTurnCount=0;
+  if(TUT.timer){ clearInterval(TUT.timer); TUT.timer=null; }
+  var w=tutEl("tut-wrap"); if(w) w.style.display="none";
+  var mt=tutEl("mi-tut-exit"); if(mt) mt.style.display="none";
+  closeAllModals(); onlineMode=false;
+}
+function tutExitToLanding(){
+  tutCleanState();
+  try{ stopMusic(); }catch(e){}
+  showScr("mode");
+}
+function tutPlayReal(mode){
+  tutCleanState();
+  showScr("mode");
+  chooseCreate(mode);
+}
+function tutRound1End(winner){
+  var humanWon=(G&&G.players&&winner===G.players[0]);
+  tutEl("tutd-title").textContent=humanWon?"🎉 You WON Round 1!":"🎓 Tutorial Complete!";
+  tutEl("tutd-msg").textContent=humanWon
+    ?("Congratulations "+winner.name+" — you beat "+TUT_BOT+" AND learned how to play Tiger Chef! You're ready for the real thing.")
+    :(TUT_BOT+" snagged Round 1 — but you've learned how to play Tiger Chef! Time for a rematch with real friends.");
+  tutCleanState();
+  try{ stopMusic(); }catch(e){}
+  showScr("tut-done");
+}
+
+// ── PHYSICAL GAME CTA ──
+var ctaTimer=null;
+function showCTA(){
+  var ws=document.getElementById("ws");
+  if(!ws||!ws.classList.contains("on")) return; // player already moved on
+  try{
+    if(localStorage.getItem("tcNewsletter")){
+      var r=tutEl("cta-sub-row"),d=tutEl("cta-sub-done");
+      if(r) r.style.display="none"; if(d) d.style.display="block";
+    }
+  }catch(e){}
+  showScr("cta");
+}
+function ctaPlayAgain(){ resetGame(); }
+function ctaMenu(){
+  if(onlineMode){ menuAction("exit"); return; }
+  try{ stopMusic(); }catch(e){}
+  showScr("mode");
+}
+function ctaDismissForever(){
+  try{ localStorage.setItem("tcOwnsCopy","1"); }catch(e){}
+  toast("Got it — enjoy your physical copy! 😊","ok");
+  showScr("ws");
+}
+function ctaSubscribe(){
+  var inp=tutEl("cta-email");
+  var em=(inp.value||"").trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ toast("Enter a valid email address ✉️","err"); return; }
+  var btn=tutEl("cta-sub-btn"); btn.disabled=true; btn.textContent="Saving…";
+  var done=function(ok){
+    if(ok){
+      try{ localStorage.setItem("tcNewsletter","1"); }catch(e){}
+      inp.value="";
+      tutEl("cta-sub-row").style.display="none";
+      tutEl("cta-sub-done").style.display="block";
+      toast("You're on the list! 🎉","ok");
+    } else {
+      btn.disabled=false; btn.textContent="Notify Me";
+      toast("Couldn't save — check your connection.","err");
+    }
+  };
+  try{
+    waitForAuth(function(){
+      db.collection("newsletter").add({
+        email:em,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function(){ done(true); }).catch(function(e){ console.error(e); done(false); });
+    });
+  }catch(e){ console.error(e); done(false); }
+}
+
 // ── INIT ──
 setPCount(2);
 setRcCount(2);
 renderPList();
+// Tutorial: auto-offer on first visit (skip if arriving via a room invite link)
+try{
+  if((typeof inviteCode==="undefined"||!inviteCode)&&!localStorage.getItem("tcTutSeen")){
+    setTimeout(function(){ if(!TUT.on) document.getElementById("tut-offer").classList.add("on"); },800);
+  }
+}catch(e){}
 var volSlider=document.getElementById("music-vol");
 if(volSlider) volSlider.value=Math.round(musicVol*100);
 if(inviteCode){ document.getElementById("mode-invite").style.display="block"; }
