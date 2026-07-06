@@ -62,7 +62,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 /* Screens */
 .scr{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;overflow:hidden}
 .scr.on{display:flex}
-#mode,#ss,#rj,#rl,#tut-done,#cta{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:14px;padding-bottom:20px;min-height:0;flex:1 1 0}
+#mode,#ss,#rj,#rl,#tut-done,#cta,#ws{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:14px;padding-bottom:20px;min-height:0;flex:1 1 0}
 #mode .sbox,#ss .sbox,#rj .sbox,#rl .sbox,#tut-done .sbox,#cta .sbox{flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #mode .logo-img,#ss .logo-img{flex-shrink:0}
 
@@ -155,7 +155,10 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 .music-menu-btn.playing{color:var(--ye)}
 .music-vol-row{display:flex;align-items:center;gap:8px;padding:2px 14px 8px;width:100%}
 .music-vol-row span{font-size:0.85rem}
-.music-vol-row input[type=range]{flex:1;accent-color:var(--or);cursor:pointer;min-width:0}
+.music-vol-row input[type=range]{flex:1;cursor:pointer;min-width:0;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:rgba(249,161,27,0.28);outline:none}
+.music-vol-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--or);border:2px solid var(--ye);box-shadow:0 1px 4px rgba(0,0,0,0.5);cursor:pointer}
+.music-vol-row input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--or);border:2px solid var(--ye);cursor:pointer}
+.music-vol-row input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:rgba(249,161,27,0.28)}
 
 /* Game body */
 .gbody{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative}
@@ -502,6 +505,8 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
 #tut-exit:hover{color:var(--or)}
 .btn-tut{width:100%;padding:10px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(249,161,27,0.35);color:var(--cr);font-family:'GameFont',sans-serif;font-size:0.95rem;cursor:pointer;transition:all .2s;margin-top:10px}
 .btn-tut:hover,.btn-tut:active{background:rgba(249,161,27,0.18);color:var(--ye)}
+.footer-copy{width:min(400px,90vw);text-align:center;font-size:0.56rem;line-height:1.55;color:rgba(255,245,230,0.32);font-family:'GameFont',sans-serif;padding:6px 12px 2px;flex-shrink:0}
+.footer-copy .build-tag{display:block;margin-top:3px;color:rgba(255,245,230,0.18);font-size:0.52rem;letter-spacing:1px}
 .mcancel{padding:6px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.14);color:rgba(255,245,230,0.44);font-family:'GameFont',sans-serif;cursor:pointer;font-size:0.85rem;transition:all .18s}
 .mcancel:hover{border-color:rgba(255,255,255,0.28);color:var(--cr)}
 .rules-content{text-align:left;max-height:52vh;overflow-y:auto;margin-bottom:14px}
@@ -566,6 +571,7 @@ body::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
       <div style="text-align:center;margin-top:2px"><button type="button" class="back-arrow" onclick="cancelCreate()">← Back</button></div>
     </div>
   </div>
+  <div class="footer-copy">Tiger Chef © 2026 Zephaniah, Eugene &amp; Joanne. All rights reserved.<br>The digital game is licensed for personal, non-commercial play only. Unauthorized copying, modification, or redistribution is prohibited and will be pursued legally.<span class="build-tag">BUILD v14</span></div>
 </div>
 
 <!-- JOIN ROOM -->
@@ -1024,6 +1030,8 @@ var roomCode=null;
 var isHost=false;
 var hostUidCache=null;   // last known hostUid from the room doc
 var roomTurnAt=null;     // when the current turn started (ms)
+var roomSkipCounts={};   // per-uid skip tally (2 = removed)
+var lastMySkips=0, kickHandled=false, prevTurnCur=null;
 var roomSkipVotes=null;  // {target:playerIndex, voters:[uid,...]}
 var turnJustChanged=false; // set by turn-advancing code; sync() stamps turnAt
 var localChefs=[];       // chosen chefs for local (pass & play) setup
@@ -1098,9 +1106,15 @@ function iosDismiss(){
   try{ localStorage.setItem('tcIosDismissed','1'); }catch(ex){}
 }
 if('serviceWorker' in navigator){
+  var _swReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(_swReloaded) return; _swReloaded=true; location.reload();
+  });
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('sw.js').then(function(reg){
       console.log('SW registered, scope:',reg.scope);
+      try{ reg.update(); }catch(e){}
+      setInterval(function(){ try{ reg.update(); }catch(e){} },60*60*1000);
     }).catch(function(e){ console.warn('SW registration failed:',e); });
   });
 }
@@ -1291,8 +1305,22 @@ function listenToRoom(code){
     roomTurnAt=data.turnAt||null;
     roomSkipVotes=data.skipVotes||null;
       if(data.skipDuration!==undefined) SKIP_IDLE_MS=(data.skipDuration===0)?null:(data.skipDuration*1000);
+    roomSkipCounts=data.skipCounts||{};
+    var mySkips=(myIndex>=0&&roomSkipCounts[myUid])||0;
+    if(data.status==="playing"&&mySkips>lastMySkips){
+      lastMySkips=mySkips;
+      if(mySkips===1){
+        showAlert("⚠️ Your turn was skipped!","The group voted to skip your turn. Heads up: if your turn gets skipped a second time, you'll be removed from the game.");
+      }
+    }
+    if(mySkips>=2&&myIndex>=0&&data.players[myIndex]&&data.players[myIndex].left){ handleKicked(); return; }
+    if(data.status==="playing"&&typeof data.cur==="number"){
+      if(prevTurnCur!==null&&prevTurnCur!==data.cur&&myIndex>=0&&data.cur===myIndex) playTurnDing();
+      prevTurnCur=data.cur;
+    } else { prevTurnCur=null; }
     if(data.status==="lobby"){
       finishedShown=false;
+      lastMySkips=0; kickHandled=false;
       renderLobby(data);
       var cur=document.querySelector(".scr.on");
       if(cur&&(cur.id==="gs"||cur.id==="ws")) showScr("rl");
@@ -1538,10 +1566,16 @@ function voteSkip(){
 function forceSkip(target){
   if(!G||!G.players||G.cur!==target) return;
   var p=G.players[target];
+  var skCnt=((roomSkipCounts&&roomSkipCounts[p.uid])||0)+1;
   log(p.name+" was skipped by a group vote. ⏭","hi");
   p.done={fix:false,block:false,feed:false,quick:false,slow:false,disc:false,draw:false};
   p.discUsed=0;
   if(p.isBlocked){ p.isBlocked=false; p.blockCard=null; }
+  if(skCnt>=2){
+    p.left=true;
+    if(p.meatInFront){ G.discard.push(p.meatInFront.card); p.meatInFront=null; }
+    log(p.name+" was removed from the game after being skipped twice. 🚫","hi");
+  }
   var safety=0;
   do{ G.cur=(G.cur+1)%G.players.length; safety++; }while(G.players[G.cur].left&&safety<=G.players.length);
   var np=G.players[G.cur];
@@ -1550,6 +1584,8 @@ function forceSkip(target){
   if(np.meatInFront&&!np.meatInFront.ready) np.meatInFront.ready=true;
   turnJustChanged=true;
   sync();
+  var _su={}; _su["skipCounts."+p.uid]=skCnt;
+  roomRef().update(_su).catch(function(e){ console.error(e); });
   // If the skipped player was the game master, adopt the crown so
   // resets and round management stay available to the group
   if(hostUidCache&&p.uid===hostUidCache){
@@ -1627,7 +1663,7 @@ function resetGame(){
   if(onlineMode){
     // Back to the shared lobby (keeps everyone in the room, fresh scores)
     var slim=G.players.filter(function(p){ return !p.left; }).map(function(p){ return {uid:p.uid,name:p.name,chef:p.chef}; });
-    roomRef().update({status:"lobby",players:slim}).catch(function(e){ console.error(e); });
+    roomRef().update({status:"lobby",players:slim}).catch(function(e){ console.error(e); toast("Couldn't restart — check your connection.","err"); });
     return; // everyone (including us) moves to lobby via the room snapshot
   }
   showScr("ss");
@@ -1715,8 +1751,48 @@ function menuAction(a){
 function showConfirm(title,msg,fn){
   document.getElementById("confirm-title").textContent=title;
   document.getElementById("confirm-msg").textContent=msg;
-  document.getElementById("confirm-yes").onclick=function(){ closeModal("confirm-modal"); fn(); };
+  var y=document.getElementById("confirm-yes");
+  y.textContent="Yes, do it"; y.classList.remove("pr"); y.classList.add("da");
+  var c=document.querySelector("#confirm-modal .mcancel"); if(c) c.style.display="";
+  y.onclick=function(){ closeModal("confirm-modal"); fn(); };
   document.getElementById("confirm-modal").classList.add("on");
+}
+function showAlert(title,msg,fn){
+  document.getElementById("confirm-title").textContent=title;
+  document.getElementById("confirm-msg").textContent=msg;
+  var y=document.getElementById("confirm-yes");
+  y.textContent="OK"; y.classList.remove("da"); y.classList.add("pr");
+  var c=document.querySelector("#confirm-modal .mcancel"); if(c) c.style.display="none";
+  y.onclick=function(){ closeModal("confirm-modal"); if(fn) fn(); };
+  document.getElementById("confirm-modal").classList.add("on");
+}
+function handleKicked(){
+  if(kickHandled) return; kickHandled=true;
+  try{ if(roomUnsub){ roomUnsub(); roomUnsub=null; } }catch(e){}
+  try{ if(handUnsub){ handUnsub(); handUnsub=null; } }catch(e){}
+  onlineMode=false;
+  try{ clearSession(); }catch(e){}
+  try{ stopMusic(); }catch(e){}
+  try{ cancelCreate(); }catch(e){}
+  showScr("mode");
+  showAlert("🚫 Removed from game","Your turn was skipped twice, so you've been removed from the game. You can join or create a new room anytime.");
+}
+var dingCtx=null;
+function playTurnDing(){
+  try{
+    dingCtx=dingCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(dingCtx.state==="suspended") dingCtx.resume();
+    var t=dingCtx.currentTime;
+    [880,1320].forEach(function(f,i){
+      var o=dingCtx.createOscillator(),g=dingCtx.createGain();
+      o.type="sine"; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+i*0.09);
+      g.gain.exponentialRampToValueAtTime(0.16,t+i*0.09+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.09+0.5);
+      o.connect(g); g.connect(dingCtx.destination);
+      o.start(t+i*0.09); o.stop(t+i*0.09+0.55);
+    });
+  }catch(e){}
 }
 document.addEventListener("click",function(e){
   var m=document.getElementById("logo-menu");
@@ -1840,7 +1916,7 @@ function updateBtns(){
   var p=(onlineMode&&myIndex>=0)?G.players[myIndex]:G.players[G.cur];
   var wait=onlineMode&&G.cur!==myIndex;
   var d=p.done; var dr=d.draw;
-  var hasFix=p.hand.some(function(c){ return CARDS[c].type==="fix"; });
+  var hasFix=p.hand.some(function(c){ return CARDS[c].type==="fix"&&(!p.isBlocked||CARDS[c].fixes===p.blockCard); });
   var hasBlk=p.hand.some(function(c){ return CARDS[c].type==="block"; });
   var hasVan=p.hand.some(function(c){ return c==="delivery_van"; });
   var hasMeat=p.hand.some(function(c){ return c==="beef_steak"; });
@@ -2097,7 +2173,7 @@ function log(msg,type){ if(onlineMode) pendingLogs.push({m:msg,t:type||""}); var
 
 // ── TUTORIAL MODE ──
 var TUT={on:false,step:0,timer:null,botActive:false,botTurnCount:0,pendingBot:false,lastClick:null};
-document.addEventListener("click",function(e){ if(TUT.on) TUT.lastClick=e.target; },true);
+document.addEventListener("click",function(e){ if(TUT.on){ TUT.lastClick=e.target; TUT.lastClickStep=TUT.step; } },true);
 var TUT_BOT="Chef Bot";
 
 function tutEl(id){ return document.getElementById(id); }
@@ -2125,9 +2201,10 @@ var TUT_STEPS=[
  {text:"First, enter your name in this box.",target:function(){return tutEl("lp-name");},next:true,
   canNext:function(){ var v=(tutEl("lp-name").value||"").trim(); if(!v){ toast("Type your name first! ✏️","err"); return false; } return true; }},
  {text:"Now choose your chef! For this tutorial, tap Theodore. 🍳",target:tutChefCard,
-  onEnter:function(){ TUT.lastClick=null; },
+  onEnter:function(){ TUT.lastClick=null; TUT.lastClickStep=-1; },
   advance:function(){
     if(typeof lpChef==="undefined"||lpChef!=="Theodore") return false;
+    if(TUT.lastClickStep!==TUT.step) return false;
     var c=tutChefCard();
     return !!(c&&TUT.lastClick&&(c===TUT.lastClick||c.contains(TUT.lastClick)));
   }},
@@ -2139,12 +2216,12 @@ var TUT_STEPS=[
   advance:function(){ return tutEl("rl").classList.contains("on")||tutOnGame(); }},
  {text:"Joining room CHEF… Chef Bot is here — the game is starting! 🐯",target:null,
   advance:function(){ return tutOnGame(); }},
- {text:"This is your hand: Broken Fridge, 2× Meat, Delivery Van and Duct Tape. Below are your action buttons. Let's use them one at a time!",target:function(){return tutEl("dash");},next:true,passive:true},
+ {text:"This is your hand: Broken Fridge, 2× Meat, Delivery Van and Duct Tape. Below are your action buttons. Let's use them one at a time!",target:function(){return document.querySelector("#dash .hand-section");},next:true,passive:true},
  {text:"Broken Fridge is a BLOCK card — it stops an opponent from delivering or feeding until they fix it. Tap Block! 🚫",target:function(){return tutEl("b2");},
   advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
  {text:"Tap to block Chef Bot with your Broken Fridge!",target:function(){return tutBlkOption("Broken Fridge");},
   advance:function(){ var b=tutBot(); return b&&b.isBlocked; }},
- {text:"Quick Delivery: spend a Meat + Delivery Van together for an instant 🐯 Tiger Card! Tap Quick Deliver! 🚚",target:function(){return tutEl("b4");},
+ {text:"Quick Delivery: Play your Meat + Delivery Van cards together for an instant 🐯 Tiger Card! Tap Quick Deliver! 🚚",target:function(){return tutEl("b4");},
   advance:function(){ var h=tutHuman(); return h&&h.done.quick; }},
  {text:"Slow Delivery: place 1 Meat in front of your chef now — you can feed it to the Tiger NEXT turn. Tap Slow Deliver! 🥩",target:function(){return tutEl("b5");},
   advance:function(){ var h=tutHuman(); return h&&h.done.slow; }},
@@ -2152,7 +2229,7 @@ var TUT_STEPS=[
   advance:function(){ return G&&G.cur===1; }},
  {text:"Chef Bot's turn! It's blocked by your Broken Fridge 🔒 — but blocked chefs can still BLOCK others… and Chef Bot just blocked YOU with a Broken Delivery Box! 🚫 (Its own block expires when its turn ends.)",target:null,next:true,
   onNext:function(){ tutBotFinish(); }},
- {text:"Back to you! You drew: Broken Delivery Box, Broken Fridge, Meat and Toolbox — plus your Duct Tape. You're BLOCKED 🔒, but blocking others is still allowed!",target:function(){return tutEl("dash");},next:true,passive:true},
+ {text:"Back to you! You drew: Broken Delivery Box, Broken Fridge, Meat and Toolbox — plus your Duct Tape. You're BLOCKED 🔒, but blocking others is still allowed!",target:function(){return document.querySelector("#dash .hand-section");},next:true,passive:true},
  {text:"Return fire! Tap Block. 🚫",target:function(){return tutEl("b2");},
   advance:function(){ return tutEl("blk-modal").classList.contains("on"); }},
  {text:"Block Chef Bot with the Broken Delivery Box!",target:function(){return tutBlkOption("Broken Delivery Box");},
@@ -2163,9 +2240,9 @@ var TUT_STEPS=[
   advance:function(){ var h=tutHuman(); return h&&h.done.feed; }},
  {text:"Keep the engine going — place another Meat for next turn. Tap Slow Deliver! 🥩",target:function(){return tutEl("b5");},
   advance:function(){ var h=tutHuman(); return h&&h.done.slow; }},
- {text:"You can discard up to 2 unwanted cards per turn. The Toolbox fixes Broken Fridges — but you're not holding one, so let's swap it. Tap Discard! 🗑️",target:function(){return tutEl("b6");},
+ {text:"You can discard up to 2 unwanted cards per turn. Keep the Toolbox — it can fix a Broken Fridge later! Let's toss the extra Broken Fridge instead. Tap Discard! 🗑️",target:function(){return tutEl("b6");},
   advance:function(){ return tutEl("disc-modal").classList.contains("on"); }},
- {text:"Select the Toolbox.",target:function(){return tutDiscCard("Toolbox");},
+ {text:"Select the Broken Fridge.",target:function(){return tutDiscCard("Broken Fridge");},
   advance:function(){ return selDiscards.length>0; }},
  {text:"Tap Confirm Discard.",target:function(){return document.querySelector("#disc-modal .ab.pr");},
   advance:function(){ var h=tutHuman(); return !tutEl("disc-modal").classList.contains("on")&&h&&(h.discUsed||0)>0; }},
@@ -2456,7 +2533,7 @@ function ctaSubscribe(){
       toast("You're on the list! 🎉","ok");
     } else {
       btn.disabled=false; btn.textContent="Notify Me";
-      toast("Couldn't save — check your connection.","err");
+      toast(((window._nlErr&&window._nlErr.code==="permission-denied")?"Newsletter isn't enabled yet — Firestore rules needed.":"Couldn't save — check your connection."),"err");
     }
   };
   try{
@@ -2464,7 +2541,7 @@ function ctaSubscribe(){
       db.collection("newsletter").add({
         email:em,
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      }).then(function(){ done(true); }).catch(function(e){ console.error(e); done(false); });
+      }).then(function(){ done(true); }).catch(function(e){ console.error(e); window._nlErr=e; done(false); });
     });
   }catch(e){ console.error(e); done(false); }
 }
